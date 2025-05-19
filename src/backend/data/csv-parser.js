@@ -10,6 +10,13 @@ const { Transform } = require('stream');
  */
 function processLargeCSV(filePath, sampleSize = 1000) {
   return new Promise((resolve, reject) => {
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return reject(new Error(`File not found: ${filePath}`));
+    }
+    
+    console.log(`Starting to process CSV file: ${filePath}`);
+    
     // Track statistics instead of storing all rows
     const stats = {
       rowCount: 0,
@@ -24,9 +31,17 @@ function processLargeCSV(filePath, sampleSize = 1000) {
     const reservoir = new Array(sampleSize);
     let count = 0;
     
-    fs.createReadStream(filePath)
+    const stream = fs.createReadStream(filePath);
+    
+    stream.on('error', (err) => {
+      console.error(`Error reading file: ${err.message}`);
+      reject(err);
+    });
+    
+    stream
       .pipe(csv())
       .on('headers', (headers) => {
+        console.log(`CSV headers detected: ${headers.join(', ')}`);
         stats.columns = headers;
         
         // Initialize column stats
@@ -59,8 +74,15 @@ function processLargeCSV(filePath, sampleSize = 1000) {
         }
         
         stats.rowCount++;
+        
+        // Log progress for large files
+        if (stats.rowCount % 100000 === 0) {
+          console.log(`Processed ${stats.rowCount} rows...`);
+        }
       })
       .on('end', () => {
+        console.log(`Finished processing CSV. Total rows: ${stats.rowCount}`);
+        
         // Finalize statistics
         Object.keys(stats.columnStats).forEach(column => {
           const colStats = stats.columnStats[column];
@@ -77,7 +99,9 @@ function processLargeCSV(filePath, sampleSize = 1000) {
         });
         
         // Set the sample data from reservoir
-        const sampleArray = reservoir.slice(0, Math.min(count, sampleSize));
+        const sampleArray = reservoir.slice(0, Math.min(count, sampleSize)).filter(Boolean);
+        
+        console.log(`Sample size: ${sampleArray.length} rows`);
         
         resolve({
           summary: stats,
@@ -85,6 +109,7 @@ function processLargeCSV(filePath, sampleSize = 1000) {
         });
       })
       .on('error', (error) => {
+        console.error(`Error parsing CSV: ${error.message}`);
         reject(error);
       });
   });

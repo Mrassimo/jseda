@@ -1,0 +1,267 @@
+/* Dark Theme for EDA App */
+:root {
+  --dark-bg: #121212;
+  --dark-surface: #1e1e1e;
+  --dark-primary: #bb86fc;
+  --dark-secondary: #03dac6;
+  --dark-error: #cf6679;
+  --dark-on-bg: #e0e0e0;
+  --dark-on-surface: #ffffff;
+  --dark-card-bg: #242424;
+  --dark-card-border: #333333;
+  --dark-success-bg: #004d40;
+  --dark-success-text: #4caf50;
+  --dark-warning-bg: #663c00;
+  --dark-warning-text: #ff9800;
+  --dark-danger-bg: #621b16;
+  --dark-danger-text: #f44336;
+  --dark-info-bg: #0d3c61;
+  --dark-info-text: #2196f3;
+}
+
+body.dark-mode {
+  background-color: var(--dark-bg);
+  color: var(--dark-on-bg);
+}
+
+/* Cards */
+.dark-mode .card {
+  background-color: var(--dark-card-bg);
+  border-color: var(--dark-card-border);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dark-mode .card-title {
+  color: var(--dark-primary);
+}
+
+/* Buttons */
+.dark-mode .btn-primary {
+  background-color: var(--dark-primary);
+  border-color: var(--dark-primary);
+  color: #000;
+}
+
+.dark-mode .btn-primary:hover {
+  background-color: #9965f4;
+  border-color: #9965f4;
+}
+
+.dark-mode .btn-outline-secondary {
+  color: var(--dark-secondary);
+  border-color: var(--dark-secondary);
+}
+
+.dark-mode .btn-outline-secondary:hover {
+  background-color: var(--dark-secondary);
+  color: #000;
+}
+
+/* Alerts */
+.dark-mode .alert-success {
+  background-color: var(--dark-success-bg);
+  color: var(--dark-success-text);
+  border-color: #00695c;
+}
+
+/* List groups */
+.dark-mode .list-group-item {
+  background-color: var(--dark-card-bg);
+  color: var(--dark-on-bg);
+  border-color: var(--dark-card-border);
+}
+
+.dark-mode .list-group-item-action:hover,
+.dark-mode .list-group-item-action:focus {
+  background-color: var(--dark-surface);
+  color: var(--dark-on-surface);
+}
+
+/* Tabs */
+.dark-mode .nav-tabs {
+  border-bottom-color: var(--dark-card-border);
+}
+
+.dark-mode .nav-tabs .nav-link {
+  color: var(--dark-on-bg);
+}
+
+.dark-mode .nav-tabs .nav-link.active {
+  background-color: var(--dark-card-bg);
+  color: var(--dark-primary);
+  border-color: var(--dark-card-border);
+}
+
+.dark-mode .nav-pills .nav-link.active {
+  background-color: var(--dark-primary);
+  color: #000;
+}
+
+/* Tables */
+.dark-mode .table {
+  color: var(--dark-on-bg);
+}
+
+.dark-mode .table-striped tbody tr:nth-of-type(odd) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode .table thead th {
+  border-bottom-color: var(--dark-card-border);
+}
+
+.dark-mode .table td, 
+.dark-mode .table th {
+  border-color: var(--dark-card-border);
+}
+
+/* Forms */
+.dark-mode .form-control {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-card-border);
+  color: var(--dark-on-bg);
+}
+
+.dark-mode .form-control:focus {
+  background-color: var(--dark-surface);
+  color: var(--dark-on-surface);
+  border-color: var(--dark-primary);
+}
+
+.dark-mode .form-select {
+  background-color: var(--dark-surface);
+  border-color: var(--dark-card-border);
+  color: var(--dark-on-bg);
+}
+
+/* Badges */
+.dark-mode .badge.bg-success {
+  background-color: var(--dark-success-text) !important;
+}
+
+.dark-mode .badge.bg-warning {
+  background-color: var(--dark-warning-text) !important;
+}
+
+.dark-mode .badge.bg-danger {
+  background-color: var(--dark-danger-text) !important;
+}
+
+.dark-mode .badge.bg-info {
+  background-color: var(--dark-info-text) !important;
+}
+
+.dark-mode .badge.bg-primary {
+  background-color: var(--dark-primary) !important;
+}
+
+/* Feature icons */
+.dark-mode .feature-icon {
+  color: var(--dark-primary);
+}
+
+/* CTA section */
+.dark-mode .cta-section {
+  background-color: var(--dark-surface);
+}
+
+/* Footer */
+.dark-mode .text-muted {
+  color: #aaaaaa !important;
+}
+
+/* Chart area */
+.dark-mode .chart-container {
+  background-color: var(--dark-card-bg);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+/* Loading spinner */
+.dark-mode .spinner-border {
+  color: var(--dark-primary);
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+  padding: 8px 16px;
+  border-radius: 50px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.theme-toggle:hover {
+  background-color: #555;
+}
+
+.dark-mode .theme-toggle {
+  background-color: #bb86fc;
+  color: #000;
+}
+
+.dark-mode .theme-toggle:hover {
+  background-color: #9965f4;
+}
+
+/* Modal */
+.dark-mode .modal-content {
+  background-color: var(--dark-card-bg);
+  border-color: var(--dark-card-border);
+}
+
+.dark-mode .modal-header,
+.dark-mode .modal-footer {
+  border-color: var(--dark-card-border);
+}
+
+.dark-mode .btn-close {
+  filter: invert(1);
+}
+
+/* Scrollbar */
+.dark-mode ::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dark-mode ::-webkit-scrollbar-track {
+  background: var(--dark-bg);
+}
+
+.dark-mode ::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 5px;
+}
+
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* LLM Export Section */
+.dark-mode .llm-export-section {
+  background-color: var(--dark-surface);
+  border: 1px solid var(--dark-card-border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 30px;
+}
+
+.dark-mode .llm-export-section h4 {
+  color: var(--dark-primary);
+  margin-bottom: 15px;
+}
+
+.dark-mode .llm-prompt-select {
+  background-color: var(--dark-card-bg);
+  color: var(--dark-on-bg);
+  border-color: var(--dark-card-border);
+}
