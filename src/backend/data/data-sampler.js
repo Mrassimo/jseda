@@ -1,51 +1,22 @@
 /**
- * Data sampling strategies for EDA
+ * Data sampling utilities
  */
 
 /**
- * Perform reservoir sampling on a stream
- * @param {Readable} stream Data stream
+ * Create a random sample of data
+ * @param {Array} data Original data array
  * @param {number} sampleSize Desired sample size
- * @returns {Promise<Array>} Sampled data
- */
-function reservoirSample(stream, sampleSize) {
-  const reservoir = new Array(sampleSize);
-  let count = 0;
-  
-  return new Promise((resolve, reject) => {
-    stream
-      .on('data', (item) => {
-        count++;
-        if (count <= sampleSize) {
-          // Fill reservoir until it's full
-          reservoir[count-1] = item;
-        } else {
-          // Randomly replace elements with decreasing probability
-          const r = Math.floor(Math.random() * count);
-          if (r < sampleSize) {
-            reservoir[r] = item;
-          }
-        }
-      })
-      .on('end', () => {
-        resolve(reservoir.slice(0, Math.min(count, sampleSize)));
-      })
-      .on('error', reject);
-  });
-}
-
-/**
- * Random sampling from an array
- * @param {Array} data Data array
- * @param {number} sampleSize Desired sample size
- * @returns {Array} Sampled data
+ * @returns {Array} Sampled data array
  */
 function randomSample(data, sampleSize) {
+  if (!data || data.length === 0) return [];
   if (data.length <= sampleSize) return [...data];
   
+  // Create a copy to avoid modifying the original
   const result = [];
   const indices = new Set();
   
+  // Generate random indices
   while (indices.size < sampleSize) {
     const index = Math.floor(Math.random() * data.length);
     if (!indices.has(index)) {
@@ -58,35 +29,66 @@ function randomSample(data, sampleSize) {
 }
 
 /**
- * Stratified sampling to ensure representation across categories
- * @param {Array} dataset Data array
+ * Reservoir sampling for streaming data
+ * @param {Array} data Data stream
  * @param {number} sampleSize Desired sample size
- * @param {string} stratifyKey Key to stratify on
- * @returns {Array} Stratified sample
+ * @returns {Array} Sampled data array
  */
-function stratifiedSample(dataset, sampleSize, stratifyKey) {
-  // Group data by stratification key
-  const groups = {};
-  dataset.forEach(item => {
-    const key = item[stratifyKey];
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(item);
+function reservoirSample(data, sampleSize) {
+  if (!data || data.length === 0) return [];
+  if (data.length <= sampleSize) return [...data];
+  
+  // Initialize reservoir with first k elements
+  const reservoir = data.slice(0, sampleSize);
+  
+  // Replace elements with decreasing probability
+  for (let i = sampleSize; i < data.length; i++) {
+    const j = Math.floor(Math.random() * (i + 1));
+    if (j < sampleSize) {
+      reservoir[j] = data[i];
+    }
+  }
+  
+  return reservoir;
+}
+
+/**
+ * Stratified sampling based on a categorical column
+ * @param {Array} data Original data array
+ * @param {string} stratifyColumn Column to stratify by
+ * @param {number} sampleSize Desired sample size
+ * @returns {Array} Stratified sample array
+ */
+function stratifiedSample(data, stratifyColumn, sampleSize) {
+  if (!data || data.length === 0 || !stratifyColumn) return [];
+  if (data.length <= sampleSize) return [...data];
+  
+  // Group data by the stratification column
+  const strata = {};
+  
+  data.forEach(item => {
+    const stratumValue = item[stratifyColumn];
+    if (!strata[stratumValue]) {
+      strata[stratumValue] = [];
+    }
+    strata[stratumValue].push(item);
   });
   
-  // Calculate proportional sample sizes for each group
-  const totalSize = dataset.length;
+  // Calculate proportional sample sizes
+  const totalCount = data.length;
   const result = [];
   
-  Object.keys(groups).forEach(key => {
-    const groupSize = groups[key].length;
-    const groupSampleSize = Math.max(1, Math.round((groupSize / totalSize) * sampleSize));
+  Object.keys(strata).forEach(stratum => {
+    const stratumCount = strata[stratum].length;
+    const stratumProportion = stratumCount / totalCount;
+    const stratumSampleSize = Math.max(1, Math.round(sampleSize * stratumProportion));
     
-    // Sample from each group
-    const groupSample = randomSample(groups[key], groupSampleSize);
-    result.push(...groupSample);
+    // Sample from each stratum
+    const stratumSample = randomSample(strata[stratum], stratumSampleSize);
+    result.push(...stratumSample);
   });
   
-  // Adjust to desired sample size
+  // If we have too many samples, trim randomly
   if (result.length > sampleSize) {
     return randomSample(result, sampleSize);
   }
@@ -95,117 +97,44 @@ function stratifiedSample(dataset, sampleSize, stratifyKey) {
 }
 
 /**
- * Adaptive sampling based on data characteristics and error tolerance
- * @param {Array} data Data array
- * @param {number} initialSampleSize Initial sample size
- * @param {number} targetError Target error tolerance
- * @param {string} valueKey Key for the value to sample on
- * @returns {Array} Adaptive sample
- */
-function adaptiveSample(data, initialSampleSize, targetError = 0.05, valueKey = 'value') {
-  // Take initial sample
-  let sample = randomSample(data, initialSampleSize);
-  
-  // Calculate statistics from sample
-  const values = sample.map(item => {
-    const val = item[valueKey];
-    return typeof val === 'string' ? parseFloat(val) : val;
-  }).filter(v => !isNaN(v));
-  
-  if (values.length === 0) return sample;
-  
-  const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-  const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
-  
-  // Calculate standard error
-  const standardError = Math.sqrt(variance / values.length);
-  const relativeError = Math.abs(standardError / mean);
-  
-  // If error exceeds target, increase sample size
-  if (relativeError > targetError && mean !== 0) {
-    const requiredSampleSize = Math.ceil(
-      variance / Math.pow(targetError * Math.abs(mean), 2)
-    );
-    
-    if (requiredSampleSize > initialSampleSize && requiredSampleSize < data.length) {
-      // Get additional samples
-      const additionalSample = randomSample(
-        data, 
-        requiredSampleSize - initialSampleSize
-      );
-      sample = [...sample, ...additionalSample];
-    }
-  }
-  
-  return sample;
-}
-
-/**
- * Systematic sampling (every nth item)
- * @param {Array} data Data array
+ * Sample with adaptive strategy based on data characteristics
+ * @param {Array} data Original data array
+ * @param {Object} dataTypes Object mapping column names to data types
  * @param {number} sampleSize Desired sample size
- * @returns {Array} Systematic sample
+ * @returns {Array} Sampled data array
  */
-function systematicSample(data, sampleSize) {
+function adaptiveSample(data, dataTypes, sampleSize) {
+  if (!data || data.length === 0) return [];
   if (data.length <= sampleSize) return [...data];
   
-  const step = Math.floor(data.length / sampleSize);
-  const result = [];
+  // Check for categorical columns
+  const categoricalColumns = Object.keys(dataTypes)
+    .filter(col => dataTypes[col] === 'categorical');
   
-  for (let i = 0; i < data.length; i += step) {
-    result.push(data[i]);
-    if (result.length >= sampleSize) break;
+  // If we have categorical columns, use stratified sampling on the one with most categories
+  if (categoricalColumns.length > 0) {
+    // Select column with most categories
+    const categoryCountMap = {};
+    
+    categoricalColumns.forEach(col => {
+      const uniqueValues = new Set(data.map(item => item[col]));
+      categoryCountMap[col] = uniqueValues.size;
+    });
+    
+    // Find column with most categories
+    const stratifyColumn = Object.keys(categoryCountMap)
+      .sort((a, b) => categoryCountMap[b] - categoryCountMap[a])[0];
+    
+    return stratifiedSample(data, stratifyColumn, sampleSize);
   }
   
-  return result;
-}
-
-/**
- * Time-based sampling for temporal data
- * @param {Array} data Data array in chronological order
- * @param {number} sampleSize Desired sample size
- * @param {string} timeKey Key for timestamp
- * @returns {Array} Time-based sample
- */
-function timeBasedSample(data, sampleSize, timeKey = 'timestamp') {
-  if (data.length <= sampleSize) return [...data];
-  
-  // Get time range
-  const startTime = new Date(data[0][timeKey]).getTime();
-  const endTime = new Date(data[data.length - 1][timeKey]).getTime();
-  
-  // Calculate time intervals
-  const timeStep = (endTime - startTime) / sampleSize;
-  const result = [];
-  
-  // Sample at regular time intervals
-  for (let i = 0; i < sampleSize; i++) {
-    const targetTime = startTime + (i * timeStep);
-    
-    // Find closest data point
-    let closestIndex = 0;
-    let closestDiff = Infinity;
-    
-    for (let j = 0; j < data.length; j++) {
-      const time = new Date(data[j][timeKey]).getTime();
-      const diff = Math.abs(time - targetTime);
-      if (diff < closestDiff) {
-        closestDiff = diff;
-        closestIndex = j;
-      }
-    }
-    
-    result.push(data[closestIndex]);
-  }
-  
-  return result;
+  // Otherwise use reservoir sampling
+  return reservoirSample(data, sampleSize);
 }
 
 module.exports = {
-  reservoirSample,
   randomSample,
+  reservoirSample,
   stratifiedSample,
-  adaptiveSample,
-  systematicSample,
-  timeBasedSample
+  adaptiveSample
 };

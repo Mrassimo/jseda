@@ -10,10 +10,17 @@ const { calculateDatasetStats } = require('../analysis/descriptive');
 const { calculateCorrelationMatrix, findCorrelatedPairs } = require('../analysis/correlation');
 const { detectDataTypes } = require('../data/data-utils');
 const { randomSample } = require('../data/data-sampler');
+const path = require('path');
 
 async function generateAnalytics() {
   try {
     const { dataId, filePath, summary } = workerData;
+    
+    // Create logs directory if it doesn't exist
+    const logsDir = path.join(__dirname, '../../../logs/app');
+    if (!fs.existsSync(logsDir)) {
+      fs.mkdirSync(logsDir, { recursive: true });
+    }
     
     // For large files, we need to use sampling
     const fullSampleSize = 10000; // Use a larger sample for comprehensive analysis
@@ -41,15 +48,15 @@ async function generateAnalytics() {
     
     // Generate comprehensive metadata for LLMs
     const metadata = generateDatasetMetadata(sampleData, {
-      name: summary.fileName || `Dataset_${dataId}`
+      name: summary ? (summary.fileName || `Dataset_${dataId}`) : `Dataset_${dataId}`
     });
     
     // Build the complete analysis object
     const analysis = {
       dataId,
       summary: {
-        ...summary,
-        rowCount: summary.rowCount || sampleData.length,
+        ...(summary || {}),
+        rowCount: summary ? (summary.rowCount || sampleData.length) : sampleData.length,
         columnCount: Object.keys(dataTypes).length,
         dataTypes
       },
@@ -62,6 +69,9 @@ async function generateAnalytics() {
     // Send results back to parent
     parentPort.postMessage(analysis);
   } catch (error) {
+    console.error(`Analytics error: ${error.message}`);
+    console.error(error.stack);
+    
     parentPort.postMessage({
       success: false,
       error: error.message
@@ -77,6 +87,10 @@ async function generateAnalytics() {
  */
 async function loadSampleData(filePath, sampleSize) {
   return new Promise((resolve, reject) => {
+    if (!fs.existsSync(filePath)) {
+      return reject(new Error(`File not found: ${filePath}`));
+    }
+    
     const results = [];
     let count = 0;
     
@@ -109,6 +123,9 @@ async function loadSampleData(filePath, sampleSize) {
 
 // Start generating analytics
 generateAnalytics().catch(err => {
+  console.error(`Unhandled analytics error: ${err.message}`);
+  console.error(err.stack);
+  
   parentPort.postMessage({
     success: false,
     error: err.message

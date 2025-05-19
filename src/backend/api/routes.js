@@ -61,7 +61,7 @@ router.post('/upload', upload.single('csvFile'), (req, res) => {
   };
 
   // Process file in a worker thread
-  const worker = new Worker(path.join(__dirname, '../../src/backend/workers/csv-processor.js'), {
+  const worker = new Worker(path.join(__dirname, '../workers/csv-processor.js'), {
     workerData: { filePath, dataId }
   });
 
@@ -171,7 +171,7 @@ router.post('/visualize', express.json(), (req, res) => {
   }
 
   // Generate visualization specs
-  const visualizationWorker = new Worker(path.join(__dirname, '../../src/backend/workers/visualization-generator.js'), {
+  const visualizationWorker = new Worker(path.join(__dirname, '../workers/visualization-generator.js'), {
     workerData: {
       dataId,
       filePath: dataStore[dataId].filePath,
@@ -283,7 +283,7 @@ router.get('/analyze/:dataId', (req, res) => {
   }
 
   // Generate analytics in worker thread
-  const analyticsWorker = new Worker(path.join(__dirname, '../../src/backend/workers/analytics.js'), {
+  const analyticsWorker = new Worker(path.join(__dirname, '../workers/analytics.js'), {
     workerData: {
       dataId,
       filePath: dataStore[dataId].filePath,
