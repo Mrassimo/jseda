@@ -9,18 +9,40 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      webSecurity: true
     }
   });
 
   // Load the welcome page
   mainWindow.loadURL('http://localhost:3000/welcome.html');
   
-  // Open DevTools in development mode
-  // mainWindow.webContents.openDevTools();
+  // Set Content-Security-Policy
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': ["default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:*; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;"]
+      }
+    });
+  });
+  
+  // Open DevTools for debugging
+  mainWindow.webContents.openDevTools();
+  
+  // Log when page is loaded
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Page loaded successfully');
+  });
+  
+  // Log errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error(`Failed to load: ${errorDescription} (${errorCode})`);
+  });
 }
 
 app.whenReady().then(() => {
+  console.log('Electron app ready');
   createWindow();
   
   app.on('activate', function () {
