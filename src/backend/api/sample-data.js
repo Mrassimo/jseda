@@ -11,7 +11,7 @@ const router = express.Router();
 // Serve sample data files
 router.get('/:filename', (req, res) => {
   const { filename } = req.params;
-  const filePath = path.join(__dirname, '../../sample-data', filename);
+  const filePath = path.join(__dirname, '../../../sample-data', filename);
   
   // Check if file exists
   if (!fs.existsSync(filePath)) {
@@ -25,7 +25,7 @@ router.get('/:filename', (req, res) => {
 
 // Get list of available sample files
 router.get('/', (req, res) => {
-  const sampleDir = path.join(__dirname, '../../sample-data');
+  const sampleDir = path.join(__dirname, '../../../sample-data');
   
   try {
     const files = fs.readdirSync(sampleDir)
