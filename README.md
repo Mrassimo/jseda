@@ -1,42 +1,48 @@
-# Node.js Automated EDA Tool
+# EDA App - Browser-Based Data Analysis Tool
 
-A powerful, automated Exploratory Data Analysis (EDA) tool built with Node.js that efficiently processes large CSV files, generates intelligent visualizations, and creates comprehensive metadata suitable for LLMs.
+A powerful, modern exploratory data analysis tool that runs entirely in your browser. Upload CSV files, visualize data, and get insights instantly - no desktop installation required!
 
-## Features
-
-- **Efficient CSV Processing**: Stream-based processing for large files with minimal memory usage
-- **Smart Sampling Strategies**: Reservoir, stratified, and adaptive sampling for representative data analysis
-- **Intelligent Visualization Selection**: Automatically chooses the most appropriate chart types based on data characteristics
-- **Comprehensive Statistical Analysis**: Basic and advanced statistics with outlier detection and distribution analysis
-- **Correlation Analysis**: Identifies relationships between variables with visual correlation matrix
-- **Insights Generation**: Automatically generates actionable insights about data quality, distributions, and correlations
-- **Metadata for LLMs**: Creates detailed, structured metadata suitable for Large Language Models
-- **Interactive UI**: Web-based interface for exploring data, creating visualizations, and viewing analysis
-
-## Architecture
-
-The application follows a modular three-layer architecture:
-1. **Data Processing Layer**: Handles CSV parsing, sampling, and statistical computations
-2. **Analysis Layer**: Performs statistical calculations and generates metadata
-3. **Visualization Layer**: Selects and renders appropriate charts based on data characteristics
-
-It's implemented as a web application using Express.js for the backend and vanilla JavaScript with Chart.js for the frontend, packaged as a desktop application using Electron.
-
-## Installation
+## 🚀 One-Line Install & Run
 
 ```bash
-# Clone the repository
+git clone https://github.com/yourusername/eda-app.git && cd eda-app && npm install && npm start
+```
+
+Then open http://localhost:3030 in your browser. That's it! 🎉
+
+## ✨ Features
+
+- **📊 Instant Analysis**: Upload CSV and get insights in seconds
+- **🎨 Modern Dashboard**: Beautiful UI with dark mode support
+- **📈 Smart Visualizations**: Auto-generated charts based on your data
+- **🔍 Statistical Analysis**: Correlations, distributions, and outliers
+- **💾 No Installation**: Runs entirely in your browser
+- **🔒 Privacy First**: All processing happens locally - no data leaves your machine
+- **📱 Responsive**: Works on desktop, tablet, and mobile
+
+## 📋 Prerequisites
+
+Just need:
+- Node.js (v14+) - [Download](https://nodejs.org/)
+- A modern web browser
+
+## 🔧 Manual Installation
+
+If the one-liner doesn't work:
+
+```bash
+# 1. Clone the repository
 git clone https://github.com/yourusername/eda-app.git
 cd eda-app
 
-# Install dependencies
+# 2. Install dependencies
 npm install
 
-# Start the development server
-npm run dev
-
-# Start the Electron app
+# 3. Start the server
 npm start
+
+# 4. Open in browser
+# Navigate to http://localhost:3030
 ```
 
 ## Usage

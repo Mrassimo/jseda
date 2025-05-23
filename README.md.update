@@ -1,0 +1,84 @@
+# EDA App - Improvements
+
+The following improvements have been made to the application:
+
+## Functionality Fixes
+
+1. Fixed correlation matrix display issues:
+   - Resolved field naming inconsistency between backend and frontend (`column1/column2` vs `feature1/feature2`)
+   - Applied correlation matrix rendering patch for proper visualization
+   - Improved data passing between backend workers and frontend display
+
+2. Enhanced chart generation capabilities:
+   - Fixed visualization of correlation data
+   - Improved chart type selection based on data characteristics
+
+3. Fixed data integrity analysis:
+   - Ensured proper integration of Australian-specific checks
+   - Improved error handling for edge cases
+
+## Security Enhancements
+
+1. Updated Electron configuration in `main.js` for better security:
+   - Enabled `contextIsolation` (true)
+   - Disabled `nodeIntegration` (false) 
+   - Improved the preload script to safely expose only necessary APIs to the renderer process
+
+2. Enhanced Content Security Policy (CSP):
+   - Removed unsafe-inline directives
+   - Applied more restrictive CSP headers
+   - Properly configured permissions
+
+3. Fixed inline scripts:
+   - Moved inline JavaScript to separate files:
+     - Created `theme.js` for dark mode functionality
+     - Created `llm-export.js` for LLM export functionality
+   - Moved inline styles to `style.css`
+
+## Code Structure Improvements
+
+1. Improved modularity:
+   - Extracted inline code to separate modules
+   - Better separation of concerns
+
+2. Dependency Optimization:
+   - Moved `puppeteer` and `d3.js` to devDependencies
+   - `puppeteer` is only used in test-script.js for testing
+   - D3.js appears to be unused in the codebase
+   
+3. Testing and Validation:
+   - Created `test-correlation.js` for verifying correlation matrix functionality
+   - Enhanced `test-script.js` for automated UI testing
+   - Added detailed logging for data analysis steps
+
+## How to Use
+
+Run the application with:
+
+```bash
+# Install dependencies
+npm install
+
+# Start the Electron app
+npm start
+
+# Start Express server only
+npm run server
+
+# Start development server with auto-reload
+npm run dev
+```
+
+## Testing
+
+Verify correlation matrix functionality:
+
+```bash
+node test-correlation.js
+```
+
+Run automated UI tests:
+
+```bash
+node test-script.js
+```

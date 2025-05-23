@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Apply correlation matrix fix
+echo "Applying correlation matrix fix..."
+grep -n "function renderCorrelationMatrix" public/js/main.js > /dev/null 2>&1
+if [ $? -eq 0 ]; then
+  # Function exists, need to replace it
+  START_LINE=$(grep -n "function renderCorrelationMatrix" public/js/main.js | cut -d':' -f1)
+  END_LINE=$(grep -n "function getCorrelationColor" public/js/main.js | cut -d':' -f1)
+  END_LINE=$((END_LINE - 1))
+  
+  # Create a temporary file
+  TEMP_FILE=$(mktemp)
+  
+  # Copy the file up to the start line
+  head -n $((START_LINE - 1)) public/js/main.js > $TEMP_FILE
+  
+  # Append the patch
+  cat correlation-matrix-fix.patch >> $TEMP_FILE
+  
+  # Append the remainder of the file
+  TOTAL_LINES=$(wc -l < public/js/main.js)
+  tail -n $((TOTAL_LINES - END_LINE)) public/js/main.js >> $TEMP_FILE
+  
+  # Replace the original file
+  mv $TEMP_FILE public/js/main.js
+else
+  # Function doesn't exist, need to append it
+  CHART_CONFIG_END=$(grep -n "}\s*$" public/js/main.js | tail -1 | cut -d':' -f1)
+  
+  # Create a temporary file
+  TEMP_FILE=$(mktemp)
+  
+  # Copy the file up to the end of the chart config
+  head -n $CHART_CONFIG_END public/js/main.js > $TEMP_FILE
+  
+  # Append the patch
+  echo "" >> $TEMP_FILE
+  cat correlation-matrix-fix.patch >> $TEMP_FILE
+  
+  # Append the remainder of the file
+  TOTAL_LINES=$(wc -l < public/js/main.js)
+  tail -n $((TOTAL_LINES - CHART_CONFIG_END)) public/js/main.js >> $TEMP_FILE
+  
+  # Replace the original file
+  mv $TEMP_FILE public/js/main.js
+fi
+
+echo "Fixes applied successfully!"

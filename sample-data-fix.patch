@@ -1,0 +1,75 @@
+  console.log(\`Loading sample data for dataset \${dataId}, limit: \${limit}\`);
+  
+  // First, check if we have cached data
+  const cachedSample = cacheManager.get('sampleData', dataId);
+  if (cachedSample && Array.isArray(cachedSample) && cachedSample.length > 0) {
+    console.log(\`Using cached sample data for \${dataId}, \${cachedSample.length} items\`);
+    return res.json({
+      dataId,
+      sample: cachedSample.slice(0, limit),
+      fromCache: true
+    });
+  }
+  
+  // If no valid cache, get the sample data from the data store
+  const dataStoreSample = dataStore[dataId].sampleData || [];
+  console.log(\`Data store sample length: \${dataStoreSample.length}\`);
+  
+  // Check if we have valid sample data
+  if (dataStoreSample.length === 0) {
+    console.warn(\`No sample data available for dataset \${dataId}. This will cause UI issues.\`);
+    
+    // Check if we can retrieve the file and process it again
+    if (dataStore[dataId].filePath && fs.existsSync(dataStore[dataId].filePath)) {
+      console.log(\`Attempting to re-process file for dataset \${dataId} to generate sample data\`);
+      
+      // Import the memory-efficient processor
+      const { MemoryEfficientCSVProcessor } = require('../data/csv-parser');
+      
+      try {
+        // Create a new processor instance
+        const processor = new MemoryEfficientCSVProcessor({
+          sampleSize: 1000,
+          batchSize: 5000
+        });
+        
+        // Process the file synchronously for immediate response
+        const result = processor.processFile(dataStore[dataId].filePath);
+        
+        // Use the promise result when available
+        result.then(processedData => {
+          // Store the regenerated sample data in the data store
+          dataStore[dataId].sampleData = processedData.sampleData;
+          
+          // Store in cache for future requests
+          if (processedData.sampleData.length > 0) {
+            cacheManager.set('sampleData', dataId, processedData.sampleData, 30 * 60 * 1000); // 30 minute TTL
+            console.log(\`Regenerated and stored \${processedData.sampleData.length} sample items for dataset \${dataId}\`);
+          }
+        }).catch(err => {
+          console.error(\`Error re-processing file for dataset \${dataId}:\`, err);
+        });
+        
+        // For the current request, we'll still need to return an empty sample
+        // since the regeneration is async, but future requests will have data
+        return res.json({
+          dataId,
+          sample: [],
+          fromCache: false,
+          message: "Sample data is being regenerated. Please refresh in a few seconds."
+        });
+      } catch (error) {
+        console.error(\`Failed to re-process file for dataset \${dataId}:\`, error);
+      }
+    }
+  } else {
+    // Store valid sample data in cache for future requests
+    console.log(\`Storing \${dataStoreSample.length} items in cache for dataset \${dataId}\`);
+    cacheManager.set('sampleData', dataId, dataStoreSample, 30 * 60 * 1000); // 30 minute TTL
+  }
+  
+  res.json({
+    dataId,
+    sample: dataStoreSample.slice(0, limit),
+    fromCache: false
+  });

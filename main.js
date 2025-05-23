@@ -1,5 +1,6 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain, clipboard, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const server = require('./server');
 
 function createWindow() {
@@ -7,22 +8,22 @@ function createWindow() {
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: true
     }
   });
 
   // Load the welcome page
-  mainWindow.loadURL('http://localhost:3000/welcome.html');
+  mainWindow.loadURL('http://localhost:3030/welcome.html');
   
-  // Set Content-Security-Policy
+  // Set Content-Security-Policy with stricter rules
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        'Content-Security-Policy': ["default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:*; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;"]
+        'Content-Security-Policy': ["default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* ws://localhost:*; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net;"]
       }
     });
   });
@@ -52,4 +53,37 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// Set up IPC handlers
+ipcMain.handle('save-file', async (event, { fileName, content }) => {
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      defaultPath: fileName,
+      filters: [
+        { name: 'Text Files', extensions: ['txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+    
+    if (!canceled && filePath) {
+      fs.writeFileSync(filePath, content);
+      return { success: true, path: filePath };
+    } else {
+      return { success: false, reason: 'Operation cancelled' };
+    }
+  } catch (err) {
+    console.error('Error saving file:', err);
+    return { success: false, reason: err.message };
+  }
+});
+
+ipcMain.handle('clipboard-write', async (event, text) => {
+  try {
+    clipboard.writeText(text);
+    return { success: true };
+  } catch (err) {
+    console.error('Error writing to clipboard:', err);
+    return { success: false, reason: err.message };
+  }
 });

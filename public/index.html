@@ -3,69 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* ws://localhost:* https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net;">
   <title>EDA App</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link href="css/dark-theme.css" rel="stylesheet">
+  <link href="css/style.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="prompts/templates.js"></script>
-  <style>
-    .container {
-      margin-top: 50px;
-      transition: all 0.3s ease;
-    }
-    .chart-container {
-      width: 100%;
-      height: 400px;
-      margin-top: 30px;
-    }
-    .spinner-border {
-      display: none;
-    }
-    .hidden {
-      display: none;
-    }
-    #analysisSection {
-      margin-top: 50px;
-    }
-    #dataPreview {
-      margin-top: 30px;
-      max-height: 300px;
-      overflow-y: auto;
-    }
-    .nav-tabs {
-      margin-bottom: 20px;
-    }
-    .llm-export-section {
-      background-color: #f8f9fa;
-      border: 1px solid #dee2e6;
-      border-radius: 10px;
-      padding: 20px;
-      margin-top: 30px;
-    }
-    .insight-container {
-      min-height: 200px;
-      max-height: 400px;
-      overflow-y: auto;
-      background-color: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
-      padding: 15px;
-      margin-bottom: 15px;
-    }
-    .prompt-container {
-      max-height: 250px;
-      overflow-y: auto;
-    }
-    .llm-prompt {
-      font-family: monospace;
-      background-color: #f5f5f5;
-      padding: 15px;
-      border-radius: 8px;
-      white-space: pre-wrap;
-    }
-  </style>
 </head>
 <body class="">
   <button id="themeToggle" class="theme-toggle">
@@ -129,6 +74,9 @@
           <button class="nav-link" id="analyze-tab" data-bs-toggle="tab" data-bs-target="#analyze-tab-pane" type="button" role="tab">Analyse</button>
         </li>
         <li class="nav-item" role="presentation">
+          <button class="nav-link" id="integrity-tab" data-bs-toggle="tab" data-bs-target="#integrity-tab-pane" type="button" role="tab">Data Integrity</button>
+        </li>
+        <li class="nav-item" role="presentation">
           <button class="nav-link" id="llm-tab" data-bs-toggle="tab" data-bs-target="#llm-tab-pane" type="button" role="tab">LLM Export</button>
         </li>
       </ul>
@@ -142,10 +90,13 @@
         
         <div class="tab-pane fade" id="visualize-tab-pane" role="tabpanel" tabindex="0">
           <div class="row mb-4">
-            <div class="col-md-8">
+            <div class="col-md-6">
               <h4>Visualisation</h4>
             </div>
-            <div class="col-md-4 text-end">
+            <div class="col-md-6 text-end">
+              <button type="button" class="btn btn-success me-2" id="optimizeBtn" title="Generate optimal visualizations based on data analysis">
+                <i class="bi bi-magic"></i> Auto-Optimize
+              </button>
               <button type="button" class="btn btn-primary" id="newVisualizationBtn">Create New Visualisation</button>
             </div>
           </div>
@@ -270,6 +221,103 @@
           </div>
         </div>
 
+        <div class="tab-pane fade" id="integrity-tab-pane" role="tabpanel" tabindex="0">
+          <div class="container-fluid">
+            <div class="row mb-4">
+              <div class="col-md-8">
+                <h4>Data Integrity Analysis</h4>
+                <p>Comprehensive assessment of data quality with Australian context awareness</p>
+              </div>
+              <div class="col-md-4">
+                <div class="data-integrity-score" id="integrityScoreContainer">
+                  <div class="score-circle" id="integrityScoreCircle">
+                    <span id="integrityScore">?</span>
+                  </div>
+                  <div class="score-label" id="integrityScoreLabel">Not analysed</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-4">
+                <div class="card mb-4">
+                  <div class="card-header">
+                    <h5 class="mb-0">Summary</h5>
+                  </div>
+                  <div class="card-body" id="integritySummary">
+                    <p class="text-center text-muted">No data integrity analysis available</p>
+                  </div>
+                </div>
+                
+                <div class="card mb-4">
+                  <div class="card-header">
+                    <h5 class="mb-0">Australian Context</h5>
+                  </div>
+                  <div class="card-body" id="australianContextSummary">
+                    <p class="text-center text-muted">No Australian context analysis available</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-8">
+                <div class="card mb-4">
+                  <div class="card-header">
+                    <h5 class="mb-0">Data Quality Issues</h5>
+                  </div>
+                  <div class="card-body">
+                    <ul class="nav nav-tabs" id="integrityTabs" role="tablist">
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="critical-tab" data-bs-toggle="tab" data-bs-target="#critical-issues" type="button" role="tab">Critical</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="major-tab" data-bs-toggle="tab" data-bs-target="#major-issues" type="button" role="tab">Major</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="minor-tab" data-bs-toggle="tab" data-bs-target="#minor-issues" type="button" role="tab">Minor</button>
+                      </li>
+                      <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="warnings-tab" data-bs-toggle="tab" data-bs-target="#warnings" type="button" role="tab">Warnings</button>
+                      </li>
+                    </ul>
+                    
+                    <div class="tab-content mt-3" id="integrityTabsContent">
+                      <div class="tab-pane fade show active" id="critical-issues" role="tabpanel" tabindex="0">
+                        <div id="criticalIssuesList">
+                          <p class="text-center text-muted">No critical issues found</p>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="major-issues" role="tabpanel" tabindex="0">
+                        <div id="majorIssuesList">
+                          <p class="text-center text-muted">No major issues found</p>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="minor-issues" role="tabpanel" tabindex="0">
+                        <div id="minorIssuesList">
+                          <p class="text-center text-muted">No minor issues found</p>
+                        </div>
+                      </div>
+                      <div class="tab-pane fade" id="warnings" role="tabpanel" tabindex="0">
+                        <div id="warningsList">
+                          <p class="text-center text-muted">No warnings found</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="card mb-4">
+                  <div class="card-header">
+                    <h5 class="mb-0">Recommendations</h5>
+                  </div>
+                  <div class="card-body" id="integrityRecommendations">
+                    <p class="text-center text-muted">No recommendations available</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div class="tab-pane fade" id="llm-tab-pane" role="tabpanel" tabindex="0">
           <div class="llm-export-section">
             <h4><i class="bi bi-lightning"></i> LLM Insights Generator</h4>
@@ -299,6 +347,7 @@
                     <option value="marketingInsights">Marketing Strategy</option>
                     <option value="dataScientist">Data Scientist</option>
                     <option value="australianContext" selected>Australian Market Context</option>
+                    <option value="dataIntegrityAssessment">Data Integrity Assessment</option>
                   </select>
                 </div>
                 
@@ -340,150 +389,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/llm-export.js"></script>
   <script src="/js/main.js"></script>
-  <script>
-    // Theme switcher functionality
-    document.addEventListener('DOMContentLoaded', () => {
-      const themeToggle = document.getElementById('themeToggle');
-      const toggleIcon = themeToggle.querySelector('i');
-      const toggleText = themeToggle.querySelector('span');
-      
-      // Check for saved theme preference
-      const savedTheme = localStorage.getItem('theme');
-      if (savedTheme === 'dark') {
-        document.body.classList.add('dark-mode');
-        toggleIcon.classList.replace('bi-moon-fill', 'bi-sun-fill');
-        toggleText.textContent = 'Light Mode';
-      }
-      
-      // Toggle theme on button click
-      themeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('dark-mode');
-        
-        const isDarkMode = document.body.classList.contains('dark-mode');
-        localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-        
-        if (isDarkMode) {
-          toggleIcon.classList.replace('bi-moon-fill', 'bi-sun-fill');
-          toggleText.textContent = 'Light Mode';
-        } else {
-          toggleIcon.classList.replace('bi-sun-fill', 'bi-moon-fill');
-          toggleText.textContent = 'Dark Mode';
-        }
-      });
-
-      // LLM Tab functionality
-      const promptTemplateSelect = document.getElementById('promptTemplateSelect');
-      const promptPreview = document.getElementById('promptPreview');
-      const llmInsightSummary = document.getElementById('llmInsightSummary');
-      const copyInsightsBtn = document.getElementById('copyInsightsBtn');
-      const saveInsightsBtn = document.getElementById('saveInsightsBtn');
-      const copyPromptBtn = document.getElementById('copyPromptBtn');
-
-      if (promptTemplateSelect) {
-        promptTemplateSelect.addEventListener('change', updatePromptPreview);
-      }
-
-      if (copyInsightsBtn) {
-        copyInsightsBtn.addEventListener('click', () => {
-          copyToClipboard(llmInsightSummary.innerText);
-        });
-      }
-
-      if (copyPromptBtn) {
-        copyPromptBtn.addEventListener('click', () => {
-          copyToClipboard(promptPreview.innerText);
-        });
-      }
-
-      if (saveInsightsBtn) {
-        saveInsightsBtn.addEventListener('click', () => {
-          const insights = llmInsightSummary.innerText;
-          if (insights.trim() !== '') {
-            const blob = new Blob([insights], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `insights_${new Date().toISOString().split('T')[0]}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-          }
-        });
-      }
-
-      function updatePromptPreview() {
-        const selectedTemplate = promptTemplateSelect.value;
-        if (promptTemplates && promptTemplates[selectedTemplate]) {
-          let promptText = promptTemplates[selectedTemplate].prompt;
-          
-          // If we have insights, replace the placeholder with actual insights
-          const insights = llmInsightSummary.innerText;
-          if (insights && insights.trim() !== '' && !insights.includes('Select dataset')) {
-            promptText = promptText.replace('{{INSIGHTS}}', insights);
-          }
-          
-          promptPreview.innerText = promptText;
-        }
-      }
-
-      function copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => {
-          // Show success feedback
-          const originalBgColor = event.target.style.backgroundColor;
-          const originalText = event.target.innerHTML;
-          
-          event.target.style.backgroundColor = '#28a745';
-          event.target.innerHTML = '<i class="bi bi-check"></i> Copied!';
-          
-          setTimeout(() => {
-            event.target.style.backgroundColor = originalBgColor;
-            event.target.innerHTML = originalText;
-          }, 2000);
-        }).catch(err => {
-          console.error('Failed to copy: ', err);
-        });
-      }
-
-      // Hook into analysis tab to update LLM section when insights are available
-      const analyzeTab = document.getElementById('analyze-tab');
-      if (analyzeTab) {
-        analyzeTab.addEventListener('click', () => {
-          // Set a timeout to check for insights after they've loaded
-          setTimeout(() => {
-            const insightsContent = document.getElementById('insightsContent');
-            if (insightsContent && insightsContent.innerText.trim() !== '') {
-              // Extract insights
-              let insightText = '';
-              
-              // Add summary section
-              const summaryContent = document.getElementById('summaryContent');
-              if (summaryContent) {
-                insightText += "DATASET SUMMARY:\n" + 
-                              summaryContent.innerText.replace(/\s+/g, ' ').trim() + "\n\n";
-              }
-              
-              // Add correlations
-              const correlations = document.querySelector('#correlations-content .list-group');
-              if (correlations) {
-                insightText += "CORRELATIONS:\n" + 
-                              correlations.innerText.replace(/\s+/g, ' ').trim() + "\n\n";
-              }
-              
-              // Add insights
-              insightText += "INSIGHTS:\n" + insightsContent.innerText.trim();
-              
-              // Update the LLM insight summary
-              llmInsightSummary.innerText = insightText;
-              
-              // Update the prompt preview
-              updatePromptPreview();
-            }
-          }, 1000);
-        });
-      }
-    });
-  </script>
+  <!-- Debug script -->
+  <script src="/frontend-debug.js"></script>
 </body>
 </html>

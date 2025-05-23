@@ -1,0 +1,28 @@
+{
+  "foundDarkMode": true,
+  "foundUpload": true,
+  "foundPreview": true,
+  "foundVisualize": true,
+  "foundAnalyse": true,
+  "foundLLMExport": true,
+  "allButtons": [
+    "Dark Mode",
+    "Upload & Analyse",
+    "employees.csv\n            19/05/2025, 19:54:56\n          \n          \n            Status: ready\n            Rows: 15\n            Columns: 5",
+    "employees.csv\n            19/05/2025, 19:55:13\n          \n          \n            Status: ready\n            Rows: 15\n            Columns: 5",
+    "Data Preview",
+    "Visualise",
+    "Analyse",
+    "LLM Export",
+    "Create New Visualisation",
+    "Generate Visualisation",
+    "Summary",
+    "Statistics",
+    "Correlations",
+    "Insights",
+    "Copy Insights",
+    "Save as TXT",
+    "Copy Prompt",
+    ""
+  ]
+}

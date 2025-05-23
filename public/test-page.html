@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDA App Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .btn {
+      padding: 8px 15px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    .log-entry.error {
+      color: red;
+      background-color: #ffeeee;
+    }
+    .log-entry.warn {
+      color: orange;
+      background-color: #fff8ee;
+    }
+    #consoleLog {
+      height: 300px;
+      overflow-y: auto;
+      background-color: #f8f9fa;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    #apiResponseDisplay {
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+      background-color: #f8f9fa;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>EDA App Diagnostics</h1>
+  <p>This page helps diagnose UI issues with the main app.</p>
+  
+  <div class="card">
+    <h2>1. API Tests</h2>
+    <button id="testDatasetsBtn" class="btn">Test /api/datasets</button>
+    <button id="testDataByIdBtn" class="btn">Test /api/data/:id</button>
+    <button id="testSampleDataBtn" class="btn">Test Sample Data</button>
+    <div id="apiResponseDisplay"></div>
+  </div>
+  
+  <div class="card">
+    <h2>2. UI Element Tests</h2>
+    <button id="testDOMElementsBtn" class="btn">Test DOM Elements</button>
+    <button id="testEventListenersBtn" class="btn">Test Event Listeners</button>
+    <div id="domTestResults"></div>
+  </div>
+  
+  <div class="card">
+    <h2>3. Console Log</h2>
+    <div id="consoleLog"></div>
+  </div>
+  
+  <script>
+    // Override console methods to display in our UI
+    const originalConsole = {
+      log: console.log,
+      warn: console.warn,
+      error: console.error,
+      debug: console.debug
+    };
+    
+    const consoleLogElement = document.getElementById('consoleLog');
+    
+    function addLogEntry(level, message) {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${level}`;
+      
+      // Format timestamp
+      const timestamp = new Date().toISOString().split('T')[1].slice(0, -1);
+      
+      entry.textContent = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+      consoleLogElement.appendChild(entry);
+      consoleLogElement.scrollTop = consoleLogElement.scrollHeight;
+    }
+    
+    console.log = function() {
+      originalConsole.log.apply(console, arguments);
+      addLogEntry('log', Array.from(arguments).join(' '));
+    };
+    
+    console.warn = function() {
+      originalConsole.warn.apply(console, arguments);
+      addLogEntry('warn', Array.from(arguments).join(' '));
+    };
+    
+    console.error = function() {
+      originalConsole.error.apply(console, arguments);
+      addLogEntry('error', Array.from(arguments).join(' '));
+    };
+    
+    console.debug = function() {
+      originalConsole.debug.apply(console, arguments);
+      addLogEntry('debug', Array.from(arguments).join(' '));
+    };
+    
+    // Log unhandled errors
+    window.addEventListener('error', function(event) {
+      console.error(`JS Error: ${event.message} in ${event.filename}:${event.lineno}`);
+    });
+    
+    // Log unhandled promise rejections
+    window.addEventListener('unhandledrejection', function(event) {
+      console.error(`Unhandled Promise Rejection: ${event.reason}`);
+    });
+    
+    // Test API endpoints
+    document.getElementById('testDatasetsBtn').addEventListener('click', async () => {
+      const apiResponseDisplay = document.getElementById('apiResponseDisplay');
+      apiResponseDisplay.textContent = 'Loading datasets...';
+      
+      try {
+        console.log('Testing /api/datasets endpoint...');
+        const response = await fetch('/api/datasets');
+        const datasets = await response.json();
+        
+        console.log(`Found ${datasets.length} datasets`);
+        apiResponseDisplay.textContent = JSON.stringify(datasets, null, 2);
+      } catch (error) {
+        console.error('Error testing datasets API:', error);
+        apiResponseDisplay.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    document.getElementById('testDataByIdBtn').addEventListener('click', async () => {
+      const apiResponseDisplay = document.getElementById('apiResponseDisplay');
+      
+      try {
+        // First get all datasets
+        const response = await fetch('/api/datasets');
+        const datasets = await response.json();
+        
+        if (datasets.length === 0) {
+          apiResponseDisplay.textContent = 'No datasets available';
+          return;
+        }
+        
+        // Use the first dataset ID
+        const dataId = datasets[0].id;
+        console.log(`Testing /api/data/${dataId} endpoint...`);
+        
+        apiResponseDisplay.textContent = `Loading dataset ${dataId}...`;
+        
+        const dataResponse = await fetch(`/api/data/${dataId}`);
+        const data = await dataResponse.json();
+        
+        console.log(`Dataset loaded: ${data.name}`);
+        apiResponseDisplay.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        console.error('Error testing dataset API:', error);
+        apiResponseDisplay.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    document.getElementById('testSampleDataBtn').addEventListener('click', async () => {
+      const apiResponseDisplay = document.getElementById('apiResponseDisplay');
+      
+      try {
+        // First get all datasets
+        const response = await fetch('/api/datasets');
+        const datasets = await response.json();
+        
+        if (datasets.length === 0) {
+          apiResponseDisplay.textContent = 'No datasets available';
+          return;
+        }
+        
+        // Use the first dataset ID
+        const dataId = datasets[0].id;
+        console.log(`Testing /api/data/${dataId}/sample endpoint...`);
+        
+        apiResponseDisplay.textContent = `Loading sample data for dataset ${dataId}...`;
+        
+        const sampleResponse = await fetch(`/api/data/${dataId}/sample?limit=5`);
+        const sampleData = await sampleResponse.json();
+        
+        console.log(`Sample data loaded: ${sampleData.sample.length} rows`);
+        apiResponseDisplay.textContent = JSON.stringify(sampleData, null, 2);
+      } catch (error) {
+        console.error('Error testing sample data API:', error);
+        apiResponseDisplay.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    // Test DOM elements from main page
+    document.getElementById('testDOMElementsBtn').addEventListener('click', async () => {
+      const domTestResults = document.getElementById('domTestResults');
+      
+      try {
+        console.log('Testing DOM elements...');
+        
+        // Fetch the main index.html to check its structure
+        const response = await fetch('/index.html');
+        const html = await response.text();
+        
+        // Quick and dirty DOM parsing
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        // Check for key elements
+        const elements = [
+          'uploadForm',
+          'csvFile',
+          'uploadSpinner',
+          'datasetsList',
+          'datasetsLoading',
+          'noDatasets',
+          'dataPanel',
+          'datasetName',
+          'datasetInfo'
+        ];
+        
+        const results = elements.map(id => {
+          const element = doc.getElementById(id);
+          return { id, exists: !!element, type: element ? element.tagName : null };
+        });
+        
+        console.log('DOM element check results:', results);
+        
+        // Display results
+        domTestResults.innerHTML = `
+          <h4>DOM Elements Check</h4>
+          <table border="1" style="border-collapse: collapse; width: 100%;">
+            <tr>
+              <th>Element ID</th>
+              <th>Exists</th>
+              <th>Element Type</th>
+            </tr>
+            ${results.map(r => `
+              <tr>
+                <td>${r.id}</td>
+                <td style="color: ${r.exists ? 'green' : 'red'}">${r.exists ? 'Yes' : 'No'}</td>
+                <td>${r.type || 'N/A'}</td>
+              </tr>
+            `).join('')}
+          </table>
+          <h4>Content Security Policy</h4>
+          <pre>${doc.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') || 'No CSP meta tag found'}</pre>
+        `;
+      } catch (error) {
+        console.error('Error testing DOM elements:', error);
+        domTestResults.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    // Test event listeners setup
+    document.getElementById('testEventListenersBtn').addEventListener('click', async () => {
+      const domTestResults = document.getElementById('domTestResults');
+      
+      try {
+        console.log('Testing event listeners setup...');
+        
+        // Fetch main.js to look for event listener setup
+        const response = await fetch('/js/main.js');
+        const js = await response.text();
+        
+        // Extract setupEventListeners function
+        const setupFnMatch = js.match(/function setupEventListeners\(\) \{[\s\S]+?\}/);
+        const setupFn = setupFnMatch ? setupFnMatch[0] : 'Function not found';
+        
+        // Extract DOMContentLoaded handler
+        const domReadyMatch = js.match(/document\.addEventListener\('DOMContentLoaded', \(\) => \{[\s\S]+?\}\);/);
+        const domReadyFn = domReadyMatch ? domReadyMatch[0] : 'Function not found';
+        
+        domTestResults.innerHTML = `
+          <h4>Event Listeners Check</h4>
+          <h5>setupEventListeners function:</h5>
+          <pre style="background-color: #f5f5f5; padding: 10px; overflow: auto; max-height: 200px;">${setupFn}</pre>
+          
+          <h5>DOMContentLoaded handler:</h5>
+          <pre style="background-color: #f5f5f5; padding: 10px; overflow: auto; max-height: 200px;">${domReadyFn}</pre>
+        `;
+      } catch (error) {
+        console.error('Error testing event listeners:', error);
+        domTestResults.textContent = `Error: ${error.message}`;
+      }
+    });
+    
+    // Log page load
+    console.log('Test page loaded');
+  </script>
+</body>
+</html>

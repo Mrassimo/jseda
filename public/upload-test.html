@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSV Upload Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    .btn {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(0, 0, 0, 0.3);
+      border-radius: 50%;
+      border-top-color: #4CAF50;
+      animation: spin 1s ease-in-out infinite;
+      margin-right: 10px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    #results {
+      white-space: pre-wrap;
+      font-family: monospace;
+      background-color: #f5f5f5;
+      padding: 10px;
+      border-radius: 4px;
+      overflow: auto;
+      max-height: 300px;
+    }
+    .hidden {
+      display: none;
+    }
+    .log-container {
+      margin-top: 20px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .log-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    .error { color: red; }
+    .success { color: green; }
+    .info { color: blue; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CSV Upload Test</h1>
+    <p>Simple page to test CSV uploads directly to the API</p>
+    
+    <div class="card">
+      <h2>Upload CSV File</h2>
+      <form id="uploadForm">
+        <div class="form-group">
+          <label for="csvFile">Select CSV file:</label>
+          <input type="file" id="csvFile" name="csvFile" accept=".csv" required>
+        </div>
+        <button type="submit" class="btn">
+          <span id="uploadSpinner" class="spinner"></span>
+          Upload File
+        </button>
+      </form>
+    </div>
+    
+    <div id="resultCard" class="card hidden">
+      <h2>Upload Result</h2>
+      <div id="results"></div>
+    </div>
+    
+    <div id="responseCard" class="card hidden">
+      <h2>Data Preview</h2>
+      <div id="dataPreview"></div>
+    </div>
+    
+    <div class="card">
+      <h2>Debug Log</h2>
+      <div id="logContainer" class="log-container"></div>
+      <button id="clearLogBtn" class="btn" style="margin-top: 10px; background-color: #f44336;">Clear Log</button>
+    </div>
+  </div>
+  
+  <script>
+    // Custom logging function
+    function logMessage(message, type = 'info') {
+      const logContainer = document.getElementById('logContainer');
+      const logEntry = document.createElement('div');
+      logEntry.className = `log-entry ${type}`;
+      logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logContainer.appendChild(logEntry);
+      logContainer.scrollTop = logContainer.scrollHeight;
+      
+      // Also log to console
+      if (type === 'error') {
+        console.error(message);
+      } else if (type === 'success') {
+        console.log('%c' + message, 'color: green');
+      } else {
+        console.log(message);
+      }
+    }
+    
+    // Clear log
+    document.getElementById('clearLogBtn').addEventListener('click', function() {
+      document.getElementById('logContainer').innerHTML = '';
+    });
+    
+    // Handle form submission
+    document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      logMessage('Form submitted');
+      
+      const fileInput = document.getElementById('csvFile');
+      const file = fileInput.files[0];
+      
+      if (!file) {
+        logMessage('No file selected!', 'error');
+        return;
+      }
+      
+      logMessage(`Selected file: ${file.name} (${file.size} bytes)`, 'info');
+      
+      // Show spinner
+      const spinner = document.getElementById('uploadSpinner');
+      spinner.style.display = 'inline-block';
+      
+      // Clear previous results
+      document.getElementById('results').innerHTML = '';
+      document.getElementById('resultCard').classList.add('hidden');
+      document.getElementById('dataPreview').innerHTML = '';
+      document.getElementById('responseCard').classList.add('hidden');
+      
+      // Create form data
+      const formData = new FormData();
+      formData.append('csvFile', file);
+      
+      try {
+        logMessage('Sending upload request to /api/upload');
+        
+        // Upload the file
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        
+        logMessage(`Server responded with status: ${response.status}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        logMessage('Upload successful!', 'success');
+        
+        // Display result
+        document.getElementById('results').textContent = JSON.stringify(result, null, 2);
+        document.getElementById('resultCard').classList.remove('hidden');
+        
+        // If we have a dataId, fetch the sample
+        if (result.dataId) {
+          logMessage(`Fetching sample data for dataId: ${result.dataId}`);
+          
+          try {
+            const sampleResponse = await fetch(`/api/data/${result.dataId}/sample`);
+            
+            if (!sampleResponse.ok) {
+              throw new Error(`HTTP error! status: ${sampleResponse.status}`);
+            }
+            
+            const sampleData = await sampleResponse.json();
+            logMessage('Sample data received successfully', 'success');
+            
+            // Create table for data preview
+            if (sampleData.sample && sampleData.sample.length > 0) {
+              const sample = sampleData.sample;
+              const columns = Object.keys(sample[0]);
+              
+              let tableHtml = '<table border="1" style="width:100%; border-collapse: collapse;">';
+              
+              // Add header
+              tableHtml += '<thead><tr>';
+              columns.forEach(column => {
+                tableHtml += `<th style="padding: 8px; text-align: left;">${column}</th>`;
+              });
+              tableHtml += '</tr></thead>';
+              
+              // Add data rows (up to 10)
+              tableHtml += '<tbody>';
+              const maxRows = Math.min(sample.length, 10);
+              for (let i = 0; i < maxRows; i++) {
+                tableHtml += '<tr>';
+                columns.forEach(column => {
+                  tableHtml += `<td style="padding: 8px;">${sample[i][column] || ''}</td>`;
+                });
+                tableHtml += '</tr>';
+              }
+              tableHtml += '</tbody></table>';
+              
+              document.getElementById('dataPreview').innerHTML = tableHtml;
+              document.getElementById('responseCard').classList.remove('hidden');
+            } else {
+              logMessage('No sample data available', 'error');
+              document.getElementById('dataPreview').textContent = 'No sample data available';
+              document.getElementById('responseCard').classList.remove('hidden');
+            }
+          } catch (sampleError) {
+            logMessage(`Error fetching sample data: ${sampleError.message}`, 'error');
+          }
+        }
+      } catch (error) {
+        logMessage(`Upload failed: ${error.message}`, 'error');
+        document.getElementById('results').textContent = `Error: ${error.message}`;
+        document.getElementById('resultCard').classList.remove('hidden');
+      } finally {
+        // Hide spinner
+        spinner.style.display = 'none';
+      }
+    });
+    
+    // Log page loaded
+    window.addEventListener('DOMContentLoaded', () => {
+      logMessage('Page loaded successfully');
+    });
+  </script>
+</body>
+</html>

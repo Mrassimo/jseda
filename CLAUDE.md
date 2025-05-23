@@ -36,6 +36,14 @@ The application uses worker threads for performance-intensive tasks:
 - **Frontend**: HTML, CSS, JavaScript, Bootstrap
 - **Desktop Packaging**: Electron
 
+## Known Issues and Fixes
+
+1. **Correlation Matrix Feature**: There was an inconsistency between backend and frontend field naming (column1/column2 vs feature1/feature2). This was fixed by ensuring both sets of fields exist in the correlation.js file and analytics.js worker.
+
+2. **Chart.js Matrix Rendering**: The correlation matrix visualization was missing custom rendering code. This can be fixed by applying the patch in correlation-matrix-fix.patch.
+
+3. **Data Integrity Analysis**: The Australian-specific checks are applied correctly, but may need adjustment for different data types or contexts.
+
 ## Key Commands
 
 ```bash
@@ -50,6 +58,9 @@ npm run server
 
 # Start development server with auto-reload
 npm run dev
+
+# Run the correlation test to verify backend analysis
+node test-correlation.js
 ```
 
 ## API Endpoints
@@ -78,3 +89,11 @@ npm run dev
 Sample CSV files are available in the `sample-data/` directory:
 - `employees.csv`: Sample employee data
 - `sales.csv`: Sample sales data
+Test with a real CSV - `/Users/massimoraso/Downloads/insurance.csv`: specifically for the GUI
+
+
+## Development Notes
+
+- Use browser mcp with chrome to develop automated tests for this.
+- Use npm run dev for testing
+- Utilise Context7 MCP for understanding tools

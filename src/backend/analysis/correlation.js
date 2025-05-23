@@ -193,6 +193,8 @@ function findCorrelatedPairs(correlationMatrix, threshold = 0.7) {
         pairs.push({
           column1: columns[i],
           column2: columns[j],
+          feature1: columns[i],  // Add feature1 for frontend compatibility
+          feature2: columns[j],  // Add feature2 for frontend compatibility
           correlation: correlation,
           strength: correlation > 0 ? 'positive' : 'negative',
           magnitude: Math.abs(correlation) > 0.9 ? 'very strong' :

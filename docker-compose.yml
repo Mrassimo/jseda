@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  eda-app:
+    build: .
+    container_name: eda-app
+    ports:
+      - "3030:3030"
+    volumes:
+      # Mount uploads directory to persist data
+      - ./uploads:/app/uploads
+      - ./sample-data:/app/sample-data:ro
+    environment:
+      - NODE_ENV=production
+      - PORT=3030
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3030/api/datasets"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

@@ -7,7 +7,7 @@ const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3030;
 
 // Import routes
 const apiRoutes = require('./src/backend/api/routes');
@@ -27,7 +27,7 @@ app.use((req, res, next) => {
 // Set Content-Security-Policy headers
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', 
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:*; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:;");
+    "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* ws://localhost:*; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net;");
   next();
 });
 
@@ -54,9 +54,18 @@ if (!fs.existsSync(logsDir)) {
 }
 
 // Start the server
-app.listen(PORT, () => {
-  console.log(`EDA server running on port ${PORT}`);
-  console.log(`Open http://localhost:${PORT}/welcome.html in your browser`);
+const server = app.listen(PORT, () => {
+  console.log(`🚀 EDA App is running!`);
+  console.log(`📊 Open http://localhost:${PORT} in your browser`);
+  console.log(`💡 Try http://localhost:${PORT}/dashboard.html for the modern interface`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+  });
 });
 
 module.exports = app;

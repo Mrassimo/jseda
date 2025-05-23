@@ -1,0 +1,19 @@
+# Netlify configuration for EDA App
+
+[build]
+  command = "echo 'No build needed'"
+  publish = "public"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/server/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/sample-data/*"
+  to = "/.netlify/functions/server/:splat"
+  status = 200
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"

@@ -10,47 +10,107 @@
  * @returns {Object} Chart specification for rendering
  */
 function generateChartSpec(chartType, data, config = {}) {
-  if (!data || data.length === 0) {
-    return {
-      type: 'none',
-      error: 'No data available'
-    };
-  }
-  
-  // Generate chart spec based on type
-  switch (chartType) {
-    case 'bar':
-      return generateBarChartSpec(data, config);
-    case 'horizontalBar':
-      return generateHorizontalBarChartSpec(data, config);
-    case 'line':
-      return generateLineChartSpec(data, config);
-    case 'scatter':
-      return generateScatterChartSpec(data, config);
-    case 'bubble':
-      return generateBubbleChartSpec(data, config);
-    case 'pie':
-      return generatePieChartSpec(data, config);
-    case 'histogram':
-      return generateHistogramSpec(data, config);
-    case 'heatmap':
-      return generateHeatmapSpec(data, config);
-    case 'boxplot':
-      return generateBoxplotSpec(data, config);
-    case 'correlationMatrix':
-      return generateCorrelationMatrixSpec(data, config);
-    case 'treemap':
-      return generateTreemapSpec(data, config);
-    case 'table':
-      return generateTableSpec(data, config);
-    default:
+  try {
+    // Validate inputs
+    if (!chartType) {
+      return {
+        type: 'error',
+        error: 'Chart type is required',
+        errorType: 'MISSING_CHART_TYPE',
+        recoverable: false
+      };
+    }
+    
+    if (!data) {
+      return {
+        type: 'error',
+        error: 'No data provided',
+        errorType: 'MISSING_DATA',
+        recoverable: false
+      };
+    }
+    
+    if (!Array.isArray(data)) {
+      return {
+        type: 'error',
+        error: 'Data must be an array',
+        errorType: 'INVALID_DATA_FORMAT',
+        recoverable: false
+      };
+    }
+    
+    if (data.length === 0) {
       return {
         type: 'table',
-        data: data,
+        error: 'Empty dataset',
+        errorType: 'EMPTY_DATASET',
+        recoverable: true,
+        data: [],
         config: {
-          title: config.title || 'Data Table'
+          title: config.title || 'Empty Dataset',
+          message: 'The dataset contains no rows. Please upload a dataset with data.'
         }
       };
+    }
+    
+    // Check for valid data object structure
+    if (typeof data[0] !== 'object' || data[0] === null) {
+      return {
+        type: 'error',
+        error: 'Invalid data format: data items must be objects',
+        errorType: 'INVALID_DATA_ITEMS',
+        recoverable: false
+      };
+    }
+    
+    // Generate chart spec based on type
+    switch (chartType) {
+      case 'bar':
+        return generateBarChartSpec(data, config);
+      case 'horizontalBar':
+        return generateHorizontalBarChartSpec(data, config);
+      case 'line':
+        return generateLineChartSpec(data, config);
+      case 'scatter':
+        return generateScatterChartSpec(data, config);
+      case 'bubble':
+        return generateBubbleChartSpec(data, config);
+      case 'pie':
+        return generatePieChartSpec(data, config);
+      case 'histogram':
+        return generateHistogramSpec(data, config);
+      case 'heatmap':
+        return generateHeatmapSpec(data, config);
+      case 'boxplot':
+        return generateBoxplotSpec(data, config);
+      case 'correlationMatrix':
+        return generateCorrelationMatrixSpec(data, config);
+      case 'treemap':
+        return generateTreemapSpec(data, config);
+      case 'table':
+        return generateTableSpec(data, config);
+      default:
+        return {
+          type: 'table',
+          error: `Unsupported chart type: ${chartType}`,
+          errorType: 'UNSUPPORTED_CHART_TYPE',
+          recoverable: true,
+          data: data,
+          config: {
+            title: config.title || 'Data Table (Fallback)',
+            message: `The requested chart type "${chartType}" is not supported. Showing data as table instead.`
+          }
+        };
+    }
+  } catch (err) {
+    console.error('Error generating chart spec:', err);
+    return {
+      type: 'error',
+      error: `Failed to generate chart: ${err.message}`,
+      errorType: 'CHART_GENERATION_ERROR',
+      recoverable: false,
+      details: err.stack
+    };
   }
 }
 
@@ -61,33 +121,138 @@ function generateChartSpec(chartType, data, config = {}) {
  * @returns {Object} Chart specification
  */
 function generateBarChartSpec(data, config) {
-  const { categoryColumn, valueColumn, title } = config;
-  
-  if (!categoryColumn || !valueColumn) {
-    return { type: 'none', error: 'Missing required configuration' };
-  }
-  
-  // Aggregate data if needed
-  let chartData = data;
-  if (data.length > 25) {
-    // Group by category and average values
-    chartData = aggregateByCategory(data, categoryColumn, valueColumn);
+  try {
+    const { categoryColumn, valueColumn, title } = config;
     
-    // Limit to top categories
-    chartData = limitCategories(chartData, 25);
-  }
-  
-  return {
-    type: 'bar',
-    data: chartData,
-    config: {
-      title: title || `${valueColumn} by ${categoryColumn}`,
-      xAxisColumn: categoryColumn,
-      yAxisColumn: valueColumn,
-      xAxisLabel: categoryColumn,
-      yAxisLabel: valueColumn
+    // Validate required configuration
+    if (!categoryColumn || !valueColumn) {
+      return { 
+        type: 'error', 
+        error: 'Missing required configuration for bar chart', 
+        errorType: 'MISSING_REQUIRED_CONFIG',
+        recoverable: false,
+        details: {
+          required: ['categoryColumn', 'valueColumn'],
+          provided: Object.keys(config)
+        }
+      };
     }
-  };
+    
+    // Check if columns exist in data
+    const sampleRow = data[0];
+    if (!sampleRow.hasOwnProperty(categoryColumn)) {
+      return {
+        type: 'error',
+        error: `Category column "${categoryColumn}" not found in data`,
+        errorType: 'COLUMN_NOT_FOUND',
+        recoverable: false,
+        details: {
+          missingColumn: categoryColumn,
+          availableColumns: Object.keys(sampleRow)
+        }
+      };
+    }
+    
+    if (!sampleRow.hasOwnProperty(valueColumn)) {
+      return {
+        type: 'error',
+        error: `Value column "${valueColumn}" not found in data`,
+        errorType: 'COLUMN_NOT_FOUND',
+        recoverable: false,
+        details: {
+          missingColumn: valueColumn,
+          availableColumns: Object.keys(sampleRow)
+        }
+      };
+    }
+    
+    // Check if we have valid categorical data
+    const categories = new Set();
+    let hasInvalidValues = false;
+    
+    for (const row of data) {
+      const categoryValue = row[categoryColumn];
+      if (categoryValue !== null && categoryValue !== undefined && categoryValue !== '') {
+        categories.add(categoryValue);
+      } else {
+        hasInvalidValues = true;
+      }
+      
+      // Check if value column has numeric data
+      const value = row[valueColumn];
+      if (value !== null && value !== undefined && isNaN(parseFloat(value)) && typeof value !== 'number') {
+        hasInvalidValues = true;
+      }
+    }
+    
+    // If no categories found
+    if (categories.size === 0) {
+      return {
+        type: 'error',
+        error: `No valid category values found in column "${categoryColumn}"`,
+        errorType: 'NO_CATEGORICAL_DATA',
+        recoverable: false
+      };
+    }
+    
+    // Warn about invalid values but continue
+    let warning = null;
+    if (hasInvalidValues) {
+      warning = 'Some rows contain invalid or missing values that will be excluded';
+    }
+    
+    // Aggregate data if needed
+    let chartData = data;
+    try {
+      if (data.length > 25) {
+        // Group by category and average values
+        chartData = aggregateByCategory(data, categoryColumn, valueColumn);
+        
+        // Limit to top categories
+        chartData = limitCategories(chartData, 25);
+      }
+      
+      // Make sure we have data after filtering
+      if (chartData.length === 0) {
+        return {
+          type: 'error',
+          error: 'No valid data points after filtering',
+          errorType: 'NO_VALID_DATA',
+          recoverable: false
+        };
+      }
+    } catch (aggError) {
+      return {
+        type: 'error',
+        error: `Error processing chart data: ${aggError.message}`,
+        errorType: 'DATA_PROCESSING_ERROR',
+        recoverable: false,
+        details: aggError.stack
+      };
+    }
+    
+    return {
+      type: 'bar',
+      data: chartData,
+      config: {
+        title: title || `${valueColumn} by ${categoryColumn}`,
+        xAxisColumn: categoryColumn,
+        yAxisColumn: valueColumn,
+        xAxisLabel: categoryColumn,
+        yAxisLabel: valueColumn
+      },
+      warning
+    };
+  } catch (err) {
+    console.error('Error generating bar chart spec:', err);
+    return {
+      type: 'error',
+      error: `Failed to generate bar chart: ${err.message}`,
+      errorType: 'CHART_GENERATION_ERROR',
+      recoverable: false,
+      details: err.stack
+    };
+  }
 }
 
 /**

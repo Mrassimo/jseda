@@ -1,0 +1,95 @@
+--- a/public/js/main.js
++++ b/public/js/main.js
+@@ -262,28 +262,81 @@ async function handleFileUpload(event) {
+   formData.append('csvFile', file);
+   
+   try {
+-    const response = await fetch('/api/upload', {
+-      method: 'POST',
+-      body: formData
+-    });
++    // Log request details for debugging
++    console.log('Sending upload request to /api/upload');
+     
++    // Implement timeout and retry logic
++    let response;
++    let retries = 0;
++    const maxRetries = 2;
++    
++    while (retries <= maxRetries) {
++      try {
++        // Add timeout to the fetch request
++        const controller = new AbortController();
++        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
++        
++        response = await fetch('/api/upload', {
++          method: 'POST',
++          body: formData,
++          signal: controller.signal
++        });
++        
++        clearTimeout(timeoutId);
++        break; // Success, exit retry loop
++      } catch (fetchError) {
++        retries++;
++        console.error(`Fetch attempt ${retries} failed:`, fetchError);
++        
++        if (fetchError.name === 'AbortError') {
++          console.error('Request timed out');
++        }
++        
++        if (retries > maxRetries) {
++          throw fetchError; // Give up after max retries
++        }
++        
++        // Wait before retrying (exponential backoff)
++        await new Promise(r => setTimeout(r, 1000 * retries));
++      }
++    }
++    
++    // Check for server response
++    if (!response) {
++      throw new Error('No response received from server');
++    }
++    
++    console.log('Server response status:', response.status);
++    
+     if (!response.ok) {
+-      const error = await response.json();
+-      throw new Error(error.error || 'Error uploading file');
++      let errorMessage = `Server error: ${response.status}`;
++      try {
++        const errorData = await response.json();
++        errorMessage = errorData.error || errorMessage;
++      } catch (e) {
++        // Failed to parse error response as JSON
++        console.error('Failed to parse error response:', e);
++      }
++      throw new Error(errorMessage);
+     }
+     
+-    const result = await response.json();
+-    console.debug('Upload successful, received dataId:', result.dataId);
++    // Parse response carefully
++    let result;
++    try {
++      const text = await response.text();
++      console.debug('Raw response:', text.substring(0, 200) + (text.length > 200 ? '...' : ''));
++      
++      // Try to parse as JSON
++      try {
++        result = JSON.parse(text);
++      } catch (jsonError) {
++        console.error('Failed to parse response as JSON:', jsonError);
++        throw new Error('Invalid response format from server');
++      }
++    } catch (textError) {
++      console.error('Failed to read response text:', textError);
++      throw new Error('Failed to read server response');
++    }
+     
++    console.debug('Upload successful, received dataId:', result.dataId);
++
+     // Update the URL with the dataId for easier sharing and state recovery
+     const url = new URL(window.location.href);
+     url.searchParams.set('data', result.dataId);

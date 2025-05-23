@@ -1,0 +1,278 @@
+/**
+ * Render correlation matrix
+ * @param {Array} data Correlation data array
+ * @param {Array} labels Labels for matrix axes
+ */
+function renderCorrelationMatrix(data, labels) {
+  if (!correlationMatrixCanvas) {
+    console.error('Correlation matrix canvas not found');
+    return;
+  }
+  
+  // Clear previous chart if any
+  if (correlationMatrixChart) {
+    correlationMatrixChart.destroy();
+  }
+  
+  // Create chart config
+  const chartConfig = {
+    type: 'matrix',
+    data: {
+      datasets: [{
+        label: 'Correlation Matrix',
+        data: data.map(item => ({
+          x: labels.indexOf(item.x),
+          y: labels.indexOf(item.y),
+          v: item.correlation
+        })),
+        backgroundColor: function(context) {
+          const value = context.dataset.data[context.dataIndex].v;
+          return getCorrelationColor(value);
+        },
+        width: ({ chart }) => (chart.chartArea.width / labels.length) - 1,
+        height: ({ chart }) => (chart.chartArea.height / labels.length) - 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: function(context) {
+              const dataIndex = context[0].dataIndex;
+              const x = data[dataIndex].x;
+              const y = data[dataIndex].y;
+              return `${x} vs ${y}`;
+            },
+            label: function(context) {
+              const value = data[context.dataIndex].correlation;
+              return `Correlation: ${value.toFixed(2)}`;
+            }
+          }
+        },
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        x: {
+          type: 'category',
+          labels: labels,
+          offset: true,
+          ticks: {
+            display: true,
+            autoSkip: false,
+            maxRotation: 90,
+            minRotation: 45
+          },
+          grid: {
+            display: false
+          }
+        },
+        y: {
+          type: 'category',
+          labels: labels,
+          offset: true,
+          reverse: true,
+          ticks: {
+            display: true
+          },
+          grid: {
+            display: false
+          }
+        }
+      }
+    }
+  };
+  
+  // Register matrix controller if not registered
+  if (!Chart.controllers.matrix) {
+    Chart.register({
+      id: 'matrix',
+      defaults: {
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.1)',
+        width: function({ chart }) {
+          return chart.chartArea.width / chart.scales.x.ticks.length;
+        },
+        height: function({ chart }) {
+          return chart.chartArea.height / chart.scales.y.ticks.length;
+        }
+      },
+      controller: class MatrixController extends Chart.DatasetController {
+        constructor(chart, datasetIndex) {
+          super(chart, datasetIndex);
+        }
+        
+        // Required implementations
+        parseObjectData(meta, data, start, count) {
+          const parsed = [];
+          let i, ilen, item;
+          for (i = 0, ilen = data.length; i < ilen; ++i) {
+            item = data[i];
+            parsed.push({
+              x: item.x,
+              y: item.y,
+              v: item.v
+            });
+          }
+          return parsed;
+        }
+        
+        getMaxOverflow() {
+          return 0;
+        }
+        
+        getLabelAndValue(index) {
+          const me = this;
+          const parsed = me._cachedMeta._parsed[index];
+          const x = me._cachedMeta.xScale.getLabelForValue(parsed.x);
+          const y = me._cachedMeta.yScale.getLabelForValue(parsed.y);
+          return {
+            label: `${x}, ${y}`,
+            value: parsed.v
+          };
+        }
+        
+        updateElements(rectangles, start, count, mode) {
+          const me = this;
+          const vScale = me._cachedMeta.vScale;
+          const dataset = me.getDataset();
+          const xScale = me._cachedMeta.xScale;
+          const yScale = me._cachedMeta.yScale;
+          
+          // Get a reasonable width and height
+          let width = dataset.width || me.options.width;
+          if (typeof width === 'function') {
+            width = width({ chart: me.chart });
+          }
+          
+          let height = dataset.height || me.options.height;
+          if (typeof height === 'function') {
+            height = height({ chart: me.chart });
+          }
+          
+          for (let i = 0; i < count; ++i) {
+            const index = start + i;
+            const parsed = me._cachedMeta._parsed[index];
+            const properties = {
+              x: xScale.getPixelForValue(parsed.x),
+              y: yScale.getPixelForValue(parsed.y),
+              width,
+              height
+            };
+            
+            // Rectangle centers are at location, not corner
+            properties.x -= width / 2;
+            properties.y -= height / 2;
+            
+            properties.hidden = isNaN(parsed.v);
+            rectangles[i].x = properties.x;
+            rectangles[i].y = properties.y;
+            rectangles[i].width = properties.width;
+            rectangles[i].height = properties.height;
+            rectangles[i].hidden = properties.hidden;
+          }
+        }
+        
+        draw() {
+          const me = this;
+          const { ctx } = me.chart;
+          const meta = me._cachedMeta;
+          const elements = meta.data || [];
+          const dataset = me.getDataset();
+          const backgroundColor = dataset.backgroundColor;
+          
+          for (let i = 0; i < elements.length; ++i) {
+            const properties = elements[i];
+            const parsed = meta._parsed[i];
+            if (!properties.hidden) {
+              ctx.fillStyle = typeof backgroundColor === 'function' ? 
+                backgroundColor({ dataIndex: i, dataset, chart: me.chart }) : 
+                backgroundColor;
+                
+              ctx.fillRect(
+                properties.x,
+                properties.y,
+                properties.width,
+                properties.height
+              );
+              
+              if (me.options.borderWidth) {
+                ctx.strokeStyle = me.options.borderColor;
+                ctx.lineWidth = me.options.borderWidth;
+                ctx.strokeRect(
+                  properties.x,
+                  properties.y,
+                  properties.width,
+                  properties.height
+                );
+              }
+            }
+          }
+        }
+      },
+      
+      // Element class for the rectangles
+      defaults: {
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.1)'
+      },
+      elements: {
+        matrix: class MatrixElement extends Chart.Element {
+          constructor() {
+            super();
+            this.x = 0;
+            this.y = 0;
+            this.width = 0;
+            this.height = 0;
+            this.hidden = false;
+          }
+          
+          draw(ctx) {
+            // Drawing is handled in the controller
+          }
+          
+          getRange() {
+            return {
+              min: {
+                x: this.x,
+                y: this.y
+              },
+              max: {
+                x: this.x + this.width,
+                y: this.y + this.height
+              }
+            };
+          }
+        }
+      }
+    });
+  }
+  
+  // Create chart
+  correlationMatrixChart = new Chart(correlationMatrixCanvas, chartConfig);
+}
+
+/**
+ * Get color for correlation value
+ * @param {number} correlation Correlation value (-1 to 1)
+ * @returns {string} Color string
+ */
+function getCorrelationColor(correlation) {
+  // Normalize correlation value for color mapping
+  const normalized = (correlation + 1) / 2;
+  
+  // Get color (blue for negative, white for zero, red for positive)
+  if (correlation < 0) {
+    // Blue gradient for negative correlations
+    return `rgba(0, 0, ${Math.round(255 * Math.abs(correlation))}, ${Math.abs(correlation)})`;
+  } else if (correlation > 0) {
+    // Red gradient for positive correlations
+    return `rgba(${Math.round(255 * correlation)}, 0, 0, ${correlation})`;
+  } else {
+    // Neutral color for zero correlation
+    return 'rgba(200, 200, 200, 0.5)';
+  }
+}

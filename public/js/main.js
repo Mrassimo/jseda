@@ -37,21 +37,109 @@ const insightsContent = document.getElementById('insightsContent');
 const correlationMatrixCanvas = document.getElementById('correlationMatrixCanvas');
 const recommendationsList = document.getElementById('recommendationsList');
 const newVisualizationBtn = document.getElementById('newVisualizationBtn');
+const optimizeBtn = document.getElementById('optimizeBtn'); // New: Optimize button
 const vizPanel = document.getElementById('vizPanel');
 const modalChartCanvas = document.getElementById('modalChartCanvas');
 const chartModalTitle = document.getElementById('chartModalTitle');
 const chartModal = new bootstrap.Modal(document.getElementById('chartModal'));
 
+// Create tooltip container for visualization explanations
+let tooltipContainer = document.createElement('div');
+tooltipContainer.className = 'viz-tooltip';
+tooltipContainer.setAttribute('role', 'tooltip');
+tooltipContainer.id = 'viz-tooltip';
+document.body.appendChild(tooltipContainer);
+
+/**
+ * Show visualization tooltip
+ * @param {Event} event Mouse event
+ * @param {Object} config Visualization config with tooltip information
+ */
+function showVizTooltip(event, config) {
+  if (!config || !config.tooltip) return;
+  
+  const tooltip = document.getElementById('viz-tooltip');
+  if (!tooltip) return;
+  
+  // Create tooltip content
+  const tooltipContent = `
+    <h5>${config.title || 'Visualization Information'}</h5>
+    
+    <div class="viz-tooltip-section">
+      <h6>Purpose</h6>
+      <p class="viz-tooltip-purpose">${config.tooltip.purpose || 'N/A'}</p>
+    </div>
+    
+    <div class="viz-tooltip-section">
+      <h6>Key Insights</h6>
+      <p class="viz-tooltip-insights">${config.tooltip.insights || 'N/A'}</p>
+    </div>
+    
+    <div class="viz-tooltip-section">
+      <h6>Why This Visualization</h6>
+      <p class="viz-tooltip-rationale">${config.tooltip.rationale || 'N/A'}</p>
+    </div>
+    
+    <div class="viz-tooltip-section">
+      <h6>Background</h6>
+      <p class="viz-tooltip-background">${config.tooltip.background || 'N/A'}</p>
+    </div>
+  `;
+  
+  // Set tooltip content and position
+  tooltip.innerHTML = tooltipContent;
+  
+  // Calculate position
+  const target = event.target.closest('.info-icon') || event.target.closest('.info-btn') || event.target;
+  const rect = target.getBoundingClientRect();
+  const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+  
+  // Position tooltip near the icon but not covering it
+  tooltip.style.top = (rect.top + scrollTop - 10) + 'px';
+  tooltip.style.left = (rect.right + scrollLeft + 10) + 'px';
+  
+  // Show tooltip
+  tooltip.style.display = 'block';
+}
+
+// Function moved to top of file
+
 // Load datasets on page load
 document.addEventListener('DOMContentLoaded', () => {
-  loadDatasets();
+  console.debug('DOMContentLoaded event fired');
   setupEventListeners();
   
-  // Check URL for dataId parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  const dataId = urlParams.get('data');
-  if (dataId) {
-    loadDataset(dataId);
+  // First load available datasets
+  loadDatasets().then(() => {
+    console.debug('Datasets loaded, checking for dataId in URL or localStorage');
+    
+    // Check URL for dataId parameter first
+    const urlParams = new URLSearchParams(window.location.search);
+    const dataId = urlParams.get('data');
+    
+    if (dataId) {
+      console.debug(`Found dataId in URL parameters: ${dataId}`);
+      // Small delay to ensure UI is ready
+      setTimeout(() => loadDataset(dataId), 100);
+    } else {
+      // Check localStorage as fallback
+      const savedDataId = localStorage.getItem('currentDataId');
+      if (savedDataId) {
+        console.debug(`No dataId in URL, using saved dataId from localStorage: ${savedDataId}`);
+        setTimeout(() => loadDataset(savedDataId), 100);
+      }
+    }
+  }).catch(err => {
+    console.error('Error loading datasets:', err);
+  });
+  
+  // Add stylesheet for tooltips if not already present
+  if (!document.querySelector('link[href="css/style.css"]')) {
+    const styleSheet = document.createElement('link');
+    styleSheet.rel = 'stylesheet';
+    styleSheet.href = 'css/style.css';
+    document.head.appendChild(styleSheet);
   }
 });
 
@@ -59,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * Set up event listeners
  */
 function setupEventListeners() {
+  console.debug('Setting up event listeners');
   // Upload form submission
   uploadForm.addEventListener('submit', handleFileUpload);
   
@@ -71,19 +160,79 @@ function setupEventListeners() {
   // New visualization button
   newVisualizationBtn.addEventListener('click', showVisualizationPanel);
   
+  // Optimize button (if it exists)
+  if (optimizeBtn) {
+    optimizeBtn.addEventListener('click', generateOptimalVisualizations);
+  }
+  
   // Setup tab activation events
-  document.getElementById('visualize-tab').addEventListener('click', () => {
-    if (currentDataId) {
-      loadRecommendations(currentDataId);
-      loadVisualizations(currentDataId);
+  const visualizeTab = document.getElementById('visualize-tab');
+  if (visualizeTab) {
+    visualizeTab.addEventListener('click', () => {
+      if (currentDataId) {
+        console.debug(`visualize-tab clicked with currentDataId: ${currentDataId}`);
+        loadRecommendations(currentDataId);
+        loadVisualizations(currentDataId);
+      } else {
+        console.debug('visualize-tab clicked but no currentDataId is set');
+      }
+    });
+  }
+  
+  const analyzeTab = document.getElementById('analyze-tab');
+  if (analyzeTab) {
+    analyzeTab.addEventListener('click', () => {
+      if (currentDataId) {
+        console.debug(`analyze-tab clicked with currentDataId: ${currentDataId}`);
+        loadAnalysis(currentDataId);
+      } else {
+        console.debug('analyze-tab clicked but no currentDataId is set');
+      }
+    });
+  }
+  
+  // Close tooltips when clicking elsewhere
+  document.addEventListener('click', (e) => {
+    const tooltip = document.getElementById('viz-tooltip');
+    const isInfoIcon = e.target.closest('.info-icon') || e.target.closest('.info-btn');
+    if (tooltip && !isInfoIcon && tooltip.style.display === 'block') {
+      hideVizTooltip();
     }
   });
   
-  document.getElementById('analyze-tab').addEventListener('click', () => {
+  // Add window beforeunload event to help with state persistence
+  window.addEventListener('beforeunload', () => {
     if (currentDataId) {
-      loadAnalysis(currentDataId);
+      localStorage.setItem('currentDataId', currentDataId);
     }
   });
+}
+
+/**
+ * Check application state and restore if needed
+ * This helps with page refreshes and maintaining state
+ */
+function checkAndRestoreState() {
+  console.debug('Checking and restoring application state');
+  // Check URL first as it has highest priority
+  const urlParams = new URLSearchParams(window.location.search);
+  const dataId = urlParams.get('data');
+  
+  if (dataId) {
+    console.debug(`Found dataId in URL: ${dataId}, loading dataset`);
+    loadDataset(dataId);
+    return;
+  }
+  
+  // No URL param, check localStorage
+  const savedDataId = localStorage.getItem('currentDataId');
+  if (savedDataId) {
+    console.debug(`Found saved dataId in localStorage: ${savedDataId}, loading dataset`);
+    loadDataset(savedDataId);
+    return;
+  }
+  
+  console.debug('No saved state found, starting fresh');
 }
 
 /**
@@ -92,6 +241,7 @@ function setupEventListeners() {
  */
 async function handleFileUpload(event) {
   event.preventDefault();
+  console.debug('File upload form submitted');
   
   const fileInput = document.getElementById('csvFile');
   const file = fileInput.files[0];
@@ -101,6 +251,8 @@ async function handleFileUpload(event) {
     return;
   }
   
+  console.debug(`Uploading file: ${file.name}, size: ${file.size} bytes`);
+  
   // Show spinner
   uploadSpinner.style.display = 'inline-block';
   
@@ -108,17 +260,91 @@ async function handleFileUpload(event) {
   formData.append('csvFile', file);
   
   try {
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
-    });
+    // Log request details for debugging
+    console.log('Sending upload request to /api/upload');
     
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error uploading file');
+    // Implement timeout and retry logic
+    let response;
+    let retries = 0;
+    const maxRetries = 2;
+    
+    while (retries <= maxRetries) {
+      try {
+        // Add timeout to the fetch request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds timeout
+        
+        response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        break; // Success, exit retry loop
+      } catch (fetchError) {
+        retries++;
+        console.error(`Fetch attempt ${retries} failed:`, fetchError);
+        
+        if (fetchError.name === 'AbortError') {
+          console.error('Request timed out');
+        }
+        
+        if (retries > maxRetries) {
+          throw fetchError; // Give up after max retries
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(r => setTimeout(r, 1000 * retries));
+      }
     }
     
-    const result = await response.json();
+    // Check for server response
+    if (!response) {
+      throw new Error('No response received from server');
+    }
+    
+    console.log('Server response status:', response.status);
+    
+    if (!response.ok) {
+      let errorMessage = `Server error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        // Failed to parse error response as JSON
+        console.error('Failed to parse error response:', e);
+      }
+      throw new Error(errorMessage);
+    }
+    
+    // Parse response carefully
+    let result;
+    try {
+      const text = await response.text();
+      console.debug('Raw response:', text.substring(0, 200) + (text.length > 200 ? '...' : ''));
+      
+      // Try to parse as JSON
+      try {
+        result = JSON.parse(text);
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+        throw new Error('Invalid response format from server');
+      }
+    } catch (textError) {
+      console.error('Failed to read response text:', textError);
+      throw new Error('Failed to read server response');
+    }
+    
+    console.debug('Upload successful, received dataId:', result.dataId);
+    
+    // Update the URL with the dataId for easier sharing and state recovery
+    const url = new URL(window.location.href);
+    url.searchParams.set('data', result.dataId);
+    window.history.pushState({dataId: result.dataId}, '', url.toString());
+    
+    // Store in localStorage for recovery
+    localStorage.setItem('currentDataId', result.dataId);
     
     // Load the new dataset
     loadDataset(result.dataId);
@@ -129,6 +355,7 @@ async function handleFileUpload(event) {
     // Reset file input
     fileInput.value = '';
   } catch (error) {
+    console.error('Upload failed:', error);
     alert(`Upload failed: ${error.message}`);
   } finally {
     // Hide spinner
@@ -138,8 +365,10 @@ async function handleFileUpload(event) {
 
 /**
  * Load datasets list
+ * @returns {Promise} Promise that resolves when datasets are loaded
  */
 async function loadDatasets() {
+  console.debug('loadDatasets called');
   try {
     datasetsLoading.style.display = 'block';
     noDatasets.classList.add('hidden');
@@ -147,10 +376,13 @@ async function loadDatasets() {
     
     const response = await fetch('/api/datasets');
     const datasets = await response.json();
+    console.debug('Datasets fetched:', datasets);
     
     if (datasets.length === 0) {
+      console.debug('No datasets available');
       noDatasets.classList.remove('hidden');
     } else {
+      console.debug(`${datasets.length} datasets found, updating UI`);
       const listHTML = datasets.map(dataset => `
         <button type="button" class="list-group-item list-group-item-action" data-id="${dataset.id}">
           <div class="d-flex w-100 justify-content-between">
@@ -171,13 +403,16 @@ async function loadDatasets() {
       document.querySelectorAll('.list-group-item').forEach(item => {
         item.addEventListener('click', () => {
           const dataId = item.getAttribute('data-id');
+          console.debug(`Dataset item clicked with dataId: ${dataId}`);
           loadDataset(dataId);
         });
       });
     }
+    return datasets; // Return the datasets for promise chaining
   } catch (error) {
     console.error('Error loading datasets:', error);
     datasetsList.innerHTML = `<div class="alert alert-danger">Error loading datasets: ${error.message}</div>`;
+    throw error; // Re-throw to propagate the error for promise chaining
   } finally {
     datasetsLoading.style.display = 'none';
   }
@@ -189,11 +424,17 @@ async function loadDatasets() {
  */
 async function loadDataset(dataId) {
   try {
+    console.debug(`loadDataset called with dataId: ${dataId}`);
+    
+    // Store dataId in localStorage for recovery in case of refresh
+    localStorage.setItem('currentDataId', dataId);
+    
     // Show loading state
     datasetInfo.textContent = 'Loading dataset information...';
     dataPanel.classList.remove('hidden');
     
     // Get dataset information
+    console.debug(`Fetching dataset from: /api/data/${dataId}`);
     const response = await fetch(`/api/data/${dataId}`);
     
     if (!response.ok) {
@@ -201,6 +442,7 @@ async function loadDataset(dataId) {
     }
     
     const data = await response.json();
+    console.debug('Dataset data received:', data);
     
     // Update global variable
     currentDataId = dataId;
@@ -210,6 +452,8 @@ async function loadDataset(dataId) {
     
     if (data.status === 'ready') {
       const summary = data.summary;
+      console.debug('Dataset is ready. Summary:', summary);
+      
       datasetInfo.innerHTML = `
         <strong>Status:</strong> <span class="badge bg-success">Ready</span>
         <strong>Rows:</strong> ${summary.rowCount.toLocaleString()}
@@ -225,11 +469,13 @@ async function loadDataset(dataId) {
       // Update column selectors
       populateColumnSelectors(summary.columns);
     } else if (data.status === 'error') {
+      console.debug('Dataset has error:', data.error);
       datasetInfo.innerHTML = `
         <strong>Status:</strong> <span class="badge bg-danger">Error</span>
         <div class="alert alert-danger mt-2">${data.error}</div>
       `;
     } else {
+      console.debug('Dataset is still processing. Status:', data.status);
       datasetInfo.innerHTML = `
         <strong>Status:</strong> <span class="badge bg-warning">Processing</span>
         <div class="progress mt-2">
@@ -242,9 +488,14 @@ async function loadDataset(dataId) {
     }
     
     // Activate the preview tab
+    console.debug('Activating preview tab');
     const previewTab = document.querySelector('#dataTabs button[data-bs-target="#preview-tab-pane"]');
-    const bsTab = new bootstrap.Tab(previewTab);
-    bsTab.show();
+    if (previewTab) {
+      const bsTab = new bootstrap.Tab(previewTab);
+      bsTab.show();
+    } else {
+      console.error('Preview tab element not found');
+    }
   } catch (error) {
     console.error('Error loading dataset:', error);
     datasetInfo.innerHTML = `<div class="alert alert-danger">Error loading dataset: ${error.message}</div>`;
@@ -430,6 +681,36 @@ function displayChart(spec) {
   
   // Create new chart
   currentChartInstance = new Chart(chartCanvas, chartConfig);
+  
+  // Add info icon for detailed tooltips if we have tooltip data
+  if (spec.config && spec.config.tooltip) {
+    // Remove existing info icon if any
+    const existingIcon = chartContainer.querySelector('.info-icon');
+    if (existingIcon) {
+      existingIcon.remove();
+    }
+    
+    // Create info icon
+    const infoIcon = document.createElement('div');
+    infoIcon.className = 'info-icon';
+    infoIcon.innerHTML = '<i class="bi bi-info-circle-fill"></i>';
+    infoIcon.setAttribute('role', 'button');
+    infoIcon.setAttribute('tabindex', '0');
+    infoIcon.setAttribute('aria-label', 'Show visualization explanation');
+    chartContainer.appendChild(infoIcon);
+    
+    // Add tooltip functionality
+    infoIcon.addEventListener('mouseenter', (e) => showVizTooltip(e, spec.config));
+    infoIcon.addEventListener('mouseleave', hideVizTooltip);
+    infoIcon.addEventListener('focus', (e) => showVizTooltip(e, spec.config));
+    infoIcon.addEventListener('blur', hideVizTooltip);
+    infoIcon.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        showVizTooltip(e, spec.config);
+      }
+    });
+  }
 }
 
 /**
@@ -452,7 +733,24 @@ function createChartConfig(spec) {
           text: config.title || 'Chart'
         },
         tooltip: {
-          enabled: true
+          enabled: true,
+          callbacks: {
+            // Custom tooltips with visualization information
+            afterBody: function(context) {
+              // Only add custom tooltip content if we have tooltip data
+              if (!config.tooltip) return [];
+              
+              // Format tooltip content
+              return [
+                '',
+                'Purpose: ' + (config.tooltip.purpose || ''),
+                '',
+                'Key insights: ' + (config.tooltip.insights || ''),
+                '',
+                'Why this visualization: ' + (config.tooltip.rationale || '')
+              ];
+            }
+          }
         }
       }
     }
@@ -789,18 +1087,54 @@ async function loadVisualizations(dataId) {
       return;
     }
     
-    // Create list of visualizations
-    const listHTML = data.visualizations.map(viz => `
-      <button type="button" class="list-group-item list-group-item-action" data-id="${viz.id}">
-        <div class="d-flex w-100 justify-content-between">
-          <h5 class="mb-1">${viz.title}</h5>
-          <small>${new Date(viz.createdAt).toLocaleString()}</small>
-        </div>
-        <p class="mb-1">Chart Type: ${viz.type}</p>
-      </button>
-    `).join('');
+    // Group visualizations by category
+    const visualizationsByCategory = groupVisualizationsByCategory(data.visualizations);
     
-    savedVisualizations.innerHTML = listHTML;
+    // Create the accordions for each category
+    let accordionsHTML = '';
+    let accordionIndex = 0;
+    
+    Object.entries(visualizationsByCategory).forEach(([category, vizList]) => {
+      const categoryId = `category-${accordionIndex}`;
+      const formattedCategory = formatCategoryName(category);
+      
+      accordionsHTML += `
+        <div class="accordion-item">
+          <h2 class="accordion-header" id="heading-${categoryId}">
+            <button class="accordion-button ${accordionIndex === 0 ? '' : 'collapsed'}" type="button" 
+                    data-bs-toggle="collapse" data-bs-target="#collapse-${categoryId}" 
+                    aria-expanded="${accordionIndex === 0 ? 'true' : 'false'}" aria-controls="collapse-${categoryId}">
+              ${formattedCategory} (${vizList.length})
+            </button>
+          </h2>
+          <div id="collapse-${categoryId}" class="accordion-collapse collapse ${accordionIndex === 0 ? 'show' : ''}" 
+               aria-labelledby="heading-${categoryId}">
+            <div class="accordion-body">
+              <div class="list-group">
+                ${vizList.map(viz => `
+                  <button type="button" class="list-group-item list-group-item-action" data-id="${viz.id}">
+                    <div class="d-flex w-100 justify-content-between">
+                      <h5 class="mb-1">${viz.title}</h5>
+                      <small>${new Date(viz.createdAt).toLocaleString()}</small>
+                    </div>
+                    <p class="mb-1">Chart Type: ${viz.type}</p>
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      accordionIndex++;
+    });
+    
+    // Create the accordion container
+    savedVisualizations.innerHTML = `
+      <div class="accordion" id="visualizationsAccordion">
+        ${accordionsHTML}
+      </div>
+    `;
     
     // Add click event listeners
     document.querySelectorAll('#savedVisualizations .list-group-item').forEach(item => {
@@ -813,6 +1147,78 @@ async function loadVisualizations(dataId) {
     console.error('Error loading visualizations:', error);
     savedVisualizations.innerHTML = `<div class="alert alert-danger">Error loading visualizations: ${error.message}</div>`;
   }
+}
+
+/**
+ * Group visualizations by category
+ * @param {Array} visualizations Array of visualization objects
+ * @returns {Object} Object with categories as keys and arrays of visualizations as values
+ */
+function groupVisualizationsByCategory(visualizations) {
+  const categories = {};
+  
+  visualizations.forEach(viz => {
+    // Extract category from the visualization object
+    // Check if category exists in config, or use a default based on chart type
+    const category = viz.config && viz.config.category ? viz.config.category : getCategoryFromChartType(viz.type);
+    
+    // Initialize the category array if it doesn't exist
+    if (!categories[category]) {
+      categories[category] = [];
+    }
+    
+    // Add the visualization to its category
+    categories[category].push(viz);
+  });
+  
+  return categories;
+}
+
+/**
+ * Get category from chart type if not specified
+ * @param {string} chartType Type of chart
+ * @returns {string} Category for the chart
+ */
+function getCategoryFromChartType(chartType) {
+  // Default categorization based on chart type
+  const typeCategories = {
+    'histogram': 'distributions',
+    'boxplot': 'distributions',
+    'line': 'time_series',
+    'scatter': 'correlations',
+    'bubble': 'correlations',
+    'correlationMatrix': 'correlations',
+    'bar': 'categorical_analysis',
+    'horizontalBar': 'categorical_analysis',
+    'pie': 'categorical_analysis',
+    'treemap': 'categorical_analysis',
+    'heatmap': 'categorical_analysis'
+  };
+  
+  return typeCategories[chartType] || 'other';
+}
+
+/**
+ * Format category name for display
+ * @param {string} category Category name
+ * @returns {string} Formatted category name
+ */
+function formatCategoryName(category) {
+  // Map of category names to display names
+  const categoryDisplayNames = {
+    'distributions': 'Distributions',
+    'time_series': 'Time Series',
+    'correlations': 'Correlations',
+    'categorical_analysis': 'Categorical Analysis',
+    'overview': 'Data Overview',
+    'anomaly_detection': 'Anomaly Detection',
+    'other': 'Other Visualizations'
+  };
+  
+  return categoryDisplayNames[category] || 
+    category.split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
 }
 
 /**
@@ -857,6 +1263,37 @@ function displayModalChart(spec) {
   
   // Create new chart
   modalChartInstance = new Chart(modalChartCanvas, chartConfig);
+  
+  // Add info icon for detailed tooltips if we have tooltip data
+  const modalChartContainer = document.querySelector('.modal-body');
+  if (spec.config && spec.config.tooltip && modalChartContainer) {
+    // Remove existing info icon if any
+    const existingIcon = modalChartContainer.querySelector('.info-icon');
+    if (existingIcon) {
+      existingIcon.remove();
+    }
+    
+    // Create info icon
+    const infoIcon = document.createElement('div');
+    infoIcon.className = 'info-icon';
+    infoIcon.innerHTML = '<i class="bi bi-info-circle-fill"></i>';
+    infoIcon.setAttribute('role', 'button');
+    infoIcon.setAttribute('tabindex', '0');
+    infoIcon.setAttribute('aria-label', 'Show visualization explanation');
+    modalChartContainer.appendChild(infoIcon);
+    
+    // Add tooltip functionality
+    infoIcon.addEventListener('mouseenter', (e) => showVizTooltip(e, spec.config));
+    infoIcon.addEventListener('mouseleave', hideVizTooltip);
+    infoIcon.addEventListener('focus', (e) => showVizTooltip(e, spec.config));
+    infoIcon.addEventListener('blur', hideVizTooltip);
+    infoIcon.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        showVizTooltip(e, spec.config);
+      }
+    });
+  }
 }
 
 /**
@@ -880,33 +1317,130 @@ async function loadRecommendations(dataId) {
       return;
     }
     
-    // Create cards for recommendations
-    const cardsHTML = data.recommendations.map((rec, index) => `
-      <div class="col-md-4 mb-3">
-        <div class="card h-100">
-          <div class="card-body">
-            <h5 class="card-title">${rec.config.title}</h5>
-            <p class="card-text">
-              <strong>Chart Type:</strong> ${rec.type}<br>
-              <strong>Priority:</strong> <span class="badge ${rec.priority === 'high' ? 'bg-danger' : (rec.priority === 'medium' ? 'bg-warning' : 'bg-info')}">${rec.priority}</span>
-            </p>
-            <p class="card-text small">${rec.config.reason || ''}</p>
-            <button class="btn btn-primary btn-sm use-recommendation" data-index="${index}">Use This</button>
-          </div>
-        </div>
-      </div>
-    `).join('');
-    
-    recommendationsList.innerHTML = cardsHTML;
-    
     // Store recommendations for later use
     window.recommendations = data.recommendations;
     
-    // Add click event listeners
+    // Group recommendations by category
+    const recommendationsByCategory = groupVisualizationsByCategory(data.recommendations);
+    
+    // Create tabs for categories
+    const categoryTabs = [];
+    const categoryPanes = [];
+    
+    Object.entries(recommendationsByCategory).forEach(([category, recList], index) => {
+      const categoryId = `rec-category-${index}`;
+      const formattedCategory = formatCategoryName(category);
+      
+      // Create tab
+      categoryTabs.push(`
+        <li class="nav-item" role="presentation">
+          <button class="nav-link ${index === 0 ? 'active' : ''}" 
+                  id="${categoryId}-tab" 
+                  data-bs-toggle="tab" 
+                  data-bs-target="#${categoryId}-pane" 
+                  type="button" 
+                  role="tab" 
+                  aria-controls="${categoryId}-pane" 
+                  aria-selected="${index === 0 ? 'true' : 'false'}">
+            ${formattedCategory} (${recList.length})
+          </button>
+        </li>
+      `);
+      
+      // Create pane with cards
+      categoryPanes.push(`
+        <div class="tab-pane fade ${index === 0 ? 'show active' : ''}" 
+             id="${categoryId}-pane" 
+             role="tabpanel" 
+             aria-labelledby="${categoryId}-tab" 
+             tabindex="0">
+          <div class="row">
+            ${recList.map((rec, recIndex) => {
+              // Calculate the global index in the original recommendations array
+              const globalIndex = data.recommendations.findIndex(r => 
+                r.type === rec.type && 
+                r.config.title === rec.config.title
+              );
+              
+              return `
+                <div class="col-md-4 mb-3">
+                  <div class="card h-100 recommendation-card">
+                    <div class="card-body">
+                      <h5 class="card-title">${rec.config.title}</h5>
+                      <div class="info-btn" role="button" tabindex="0" aria-label="Show visualization explanation" data-index="${globalIndex}">
+                        <i class="bi bi-info-circle"></i>
+                      </div>
+                      <p class="card-text">
+                        <strong>Chart Type:</strong> ${rec.type}<br>
+                        <strong>Priority:</strong> <span class="badge ${rec.priority === 'high' ? 'bg-danger' : (rec.priority === 'medium' ? 'bg-warning' : 'bg-info')}">${rec.priority}</span>
+                      </p>
+                      <p class="card-text small">${rec.config.reason || ''}</p>
+                      <button class="btn btn-primary btn-sm use-recommendation" data-index="${globalIndex}">Use This</button>
+                    </div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `);
+    });
+    
+    // Create the tabs and content container with a "Generate All" button for each category
+    recommendationsList.innerHTML = `
+      <div class="mb-4">
+        <ul class="nav nav-tabs" id="recommendationsTabList" role="tablist">
+          ${categoryTabs.join('')}
+        </ul>
+        <div class="tab-content pt-3" id="recommendationsTabContent">
+          ${categoryPanes.map((pane, index) => {
+            const categoryKey = Object.keys(recommendationsByCategory)[index];
+            const recList = recommendationsByCategory[categoryKey];
+            
+            // Add a "Generate All from Category" button at the top of each category pane
+            return pane.replace('<div class="row">', `
+              <div class="mb-3">
+                <button class="btn btn-outline-primary generate-category" data-category="${categoryKey}">
+                  <i class="bi bi-lightning-charge"></i> Generate All ${formatCategoryName(categoryKey)} Visualizations
+                </button>
+              </div>
+              <div class="row">
+            `);
+          }).join('')}
+        </div>
+      </div>
+    `;
+    
+    // Add click event listeners for recommendation buttons
     document.querySelectorAll('.use-recommendation').forEach(button => {
       button.addEventListener('click', () => {
         const index = parseInt(button.getAttribute('data-index'));
         useRecommendation(index);
+      });
+    });
+    
+    // Add click event listeners for generate-category buttons
+    document.querySelectorAll('.generate-category').forEach(button => {
+      button.addEventListener('click', () => {
+        const category = button.getAttribute('data-category');
+        generateCategoryVisualizations(category, dataId, recommendationsByCategory[category]);
+      });
+    });
+    
+    // Add tooltip functionality for info buttons
+    document.querySelectorAll('.info-btn').forEach(button => {
+      const index = parseInt(button.getAttribute('data-index'));
+      const rec = data.recommendations[index];
+      
+      button.addEventListener('mouseenter', (e) => showVizTooltip(e, rec.config));
+      button.addEventListener('mouseleave', hideVizTooltip);
+      button.addEventListener('focus', (e) => showVizTooltip(e, rec.config));
+      button.addEventListener('blur', hideVizTooltip);
+      button.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          showVizTooltip(e, rec.config);
+        }
       });
     });
   } catch (error) {
@@ -963,6 +1497,141 @@ async function useRecommendation(index) {
 }
 
 /**
+ * Generate visualizations for a specific category
+ * @param {string} category Category name
+ * @param {string} dataId Dataset ID
+ * @param {Array} recommendations Array of recommendations in the category
+ */
+function generateCategoryVisualizations(category, dataId, recommendations) {
+  if (!recommendations || recommendations.length === 0 || !dataId) {
+    alert('No recommendations available for this category');
+    return;
+  }
+  
+  // Show loading spinner
+  if (vizSpinner) {
+    vizSpinner.style.display = 'inline-block';
+  }
+  
+  // Hide visualization panel and show chart container
+  vizPanel.classList.add('hidden');
+  chartContainer.classList.remove('hidden');
+  
+  // Create progress tracking container
+  if (!document.getElementById('vizProgressContainer')) {
+    const progressContainer = document.createElement('div');
+    progressContainer.id = 'vizProgressContainer';
+    progressContainer.className = 'mb-3';
+    progressContainer.innerHTML = `
+      <div class="d-flex justify-content-between mb-1">
+        <span>Generating ${formatCategoryName(category)} visualizations...</span>
+        <span id="vizProgressText">0/${recommendations.length}</span>
+      </div>
+      <div class="progress">
+        <div id="vizProgressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+             role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+      </div>
+    `;
+    chartContainer.prepend(progressContainer);
+  }
+  
+  // Track progress
+  let completedCount = 0;
+  const progressBar = document.getElementById('vizProgressBar');
+  const progressText = document.getElementById('vizProgressText');
+  
+  // For each recommendation in the category, create a visualization
+  const promises = recommendations.map(recommendation => {
+    return fetch('/api/visualize', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        dataId,
+        options: {
+          chartType: recommendation.type,
+          ...recommendation.config
+        }
+      })
+    })
+    .then(res => res.json())
+    .then(result => {
+      // Update progress
+      completedCount++;
+      const percentage = (completedCount / recommendations.length) * 100;
+      progressBar.style.width = `${percentage}%`;
+      progressBar.setAttribute('aria-valuenow', percentage);
+      progressText.textContent = `${completedCount}/${recommendations.length}`;
+      
+      // Display the first visualization if we haven't already
+      if (completedCount === 1) {
+        displayChart(result.spec);
+      }
+      
+      return result;
+    })
+    .catch(err => {
+      console.error(`Error generating "${recommendation.config.title}":`, err);
+      
+      // Still update progress even on error
+      completedCount++;
+      const percentage = (completedCount / recommendations.length) * 100;
+      progressBar.style.width = `${percentage}%`;
+      progressBar.setAttribute('aria-valuenow', percentage);
+      progressText.textContent = `${completedCount}/${recommendations.length}`;
+    });
+  });
+  
+  // Wait for all visualizations to be created
+  Promise.all(promises)
+    .then(() => {
+      // Show completion message
+      const progressContainer = document.getElementById('vizProgressContainer');
+      if (progressContainer) {
+        progressContainer.innerHTML = `
+          <div class="alert alert-success">
+            Successfully generated ${completedCount} ${formatCategoryName(category)} visualizations!
+          </div>
+        `;
+        
+        // Remove progress container after a delay
+        setTimeout(() => {
+          if (progressContainer && progressContainer.parentNode) {
+            progressContainer.parentNode.removeChild(progressContainer);
+          }
+        }, 5000);
+      }
+      
+      // Reload visualizations
+      loadVisualizations(dataId);
+      
+      // Hide spinner
+      if (vizSpinner) {
+        vizSpinner.style.display = 'none';
+      }
+    })
+    .catch(err => {
+      console.error('Error generating category visualizations:', err);
+      
+      // Show error message
+      const progressContainer = document.getElementById('vizProgressContainer');
+      if (progressContainer) {
+        progressContainer.innerHTML = `
+          <div class="alert alert-danger">
+            Error completing visualizations: ${err.message}
+          </div>
+        `;
+      }
+      
+      // Hide spinner
+      if (vizSpinner) {
+        vizSpinner.style.display = 'none';
+      }
+    });
+}
+
+/**
  * Load dataset analysis
  * @param {string} dataId Dataset ID
  */
@@ -982,6 +1651,46 @@ async function loadAnalysis(dataId) {
     
     // Update UI
     displayAnalysis(analysis);
+    
+    // Auto-generate visualizations based on analysis
+    if (analysis.dataIntegrity && analysis.dataIntegrity.summary && 
+        analysis.dataIntegrity.summary.optimal_visualizations) {
+      
+      // Add a notification that we'll be generating visualizations
+      const notification = document.createElement('div');
+      notification.className = 'alert alert-info';
+      notification.innerHTML = `
+        <h6 class="alert-heading">Optimal Visualizations</h6>
+        <p>Based on data analysis, we'll generate optimal visualizations.</p>
+        <button class="btn btn-sm btn-primary" id="startOptimalVizBtn">Generate Now</button>
+        <button class="btn btn-sm btn-secondary ms-2" id="skipOptimalVizBtn">Skip</button>
+      `;
+      
+      // If analysisContent already has a notification, remove it first
+      const existingNotification = analysisContent.querySelector('.alert-info');
+      if (existingNotification) {
+        existingNotification.remove();
+      }
+      
+      // Add to top of analysis content
+      analysisContent.prepend(notification);
+      
+      // Set up event listeners
+      document.getElementById('startOptimalVizBtn').addEventListener('click', () => {
+        notification.remove();
+        // Switch to visualize tab
+        const visualizeTab = document.getElementById('visualize-tab');
+        const bootstrapTab = bootstrap.Tab.getInstance(visualizeTab) || new bootstrap.Tab(visualizeTab);
+        bootstrapTab.show();
+        
+        // Use the progressive version
+        generateOptimalVisualizations({type: 'click'});
+      });
+      
+      document.getElementById('skipOptimalVizBtn').addEventListener('click', () => {
+        notification.remove();
+      });
+    }
     
     // Hide loading, show content
     analysisLoading.style.display = 'none';
@@ -1458,33 +2167,53 @@ function displayCorrelations(analysis) {
   correlationsContent.innerHTML = html;
   
   // Create correlation matrix visualization
-  createCorrelationMatrix(matrix);
+  createCorrelationMatrix(analysis.correlations);
 }
 
 /**
  * Create correlation matrix visualization
  * @param {Object} matrix Correlation matrix
  */
-function createCorrelationMatrix(matrix) {
-  if (!matrix) return;
+function createCorrelationMatrix(correlationData) {
+  if (!correlationData || !correlationData.matrix || !correlationData.columns) {
+    console.error('Invalid correlation data format', correlationData);
+    return;
+  }
   
-  // Convert matrix to Chart.js format
-  const columns = Object.keys(matrix);
+  const { matrix, columns } = correlationData;
   
-  if (columns.length === 0) return;
-  
-  // Create data array
+  // Create data array for visualization
   const data = [];
   
-  columns.forEach((col1, i) => {
-    columns.forEach((col2, j) => {
+  for (let i = 0; i < columns.length; i++) {
+    for (let j = 0; j < columns.length; j++) {
       data.push({
-        x: j,
-        y: i,
-        correlation: matrix[col1][col2] || 0
+        x: columns[i],
+        y: columns[j],
+        correlation: matrix[i][j]
       });
-    });
-  });
+    }
+  }
+  
+  // Render the matrix
+  renderCorrelationMatrix(data, columns);
+}
+
+/**
+ * Render correlation matrix
+ * @param {Array} data Correlation data array
+ * @param {Array} labels Labels for matrix axes
+ */
+/**
+ * Render correlation matrix
+ * @param {Array} data Correlation data array
+ * @param {Array} labels Labels for matrix axes
+ */
+function renderCorrelationMatrix(data, labels) {
+  if (!correlationMatrixCanvas) {
+    console.error('Correlation matrix canvas not found');
+    return;
+  }
   
   // Clear previous chart if any
   if (correlationMatrixChart) {
@@ -1493,54 +2222,240 @@ function createCorrelationMatrix(matrix) {
   
   // Create chart config
   const chartConfig = {
-    type: 'scatter',
+    type: 'matrix',
     data: {
       datasets: [{
-        label: 'Correlation',
+        label: 'Correlation Matrix',
         data: data.map(item => ({
-          x: item.x,
-          y: item.y
+          x: labels.indexOf(item.x),
+          y: labels.indexOf(item.y),
+          v: item.correlation
         })),
-        backgroundColor: data.map(item => getCorrelationColor(item.correlation)),
-        pointRadius: 15,
-        pointHoverRadius: 20
+        backgroundColor: function(context) {
+          const value = context.dataset.data[context.dataIndex].v;
+          return getCorrelationColor(value);
+        },
+        width: ({ chart }) => (chart.chartArea.width / labels.length) - 1,
+        height: ({ chart }) => (chart.chartArea.height / labels.length) - 1
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            title: function(context) {
+              const dataIndex = context[0].dataIndex;
+              const x = data[dataIndex].x;
+              const y = data[dataIndex].y;
+              return `${x} vs ${y}`;
+            },
+            label: function(context) {
+              const value = data[context.dataIndex].correlation;
+              return `Correlation: ${value.toFixed(2)}`;
+            }
+          }
+        },
+        legend: {
+          display: false
+        }
+      },
       scales: {
         x: {
           type: 'category',
-          labels: columns,
-          title: {
+          labels: labels,
+          offset: true,
+          ticks: {
             display: true,
-            text: 'Features'
+            autoSkip: false,
+            maxRotation: 90,
+            minRotation: 45
+          },
+          grid: {
+            display: false
           }
         },
         y: {
           type: 'category',
-          labels: columns,
-          title: {
-            display: true,
-            text: 'Features'
+          labels: labels,
+          offset: true,
+          reverse: true,
+          ticks: {
+            display: true
           },
-          reverse: true
-        }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              const index = context.dataIndex;
-              const value = data[index].correlation;
-              return `Correlation: ${value.toFixed(4)}`;
-            }
+          grid: {
+            display: false
           }
         }
       }
     }
   };
+  
+  // Register matrix controller if not registered
+  if (!Chart.controllers.matrix) {
+    Chart.register({
+      id: 'matrix',
+      defaults: {
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.1)',
+        width: function({ chart }) {
+          return chart.chartArea.width / chart.scales.x.ticks.length;
+        },
+        height: function({ chart }) {
+          return chart.chartArea.height / chart.scales.y.ticks.length;
+        }
+      },
+      controller: class MatrixController extends Chart.DatasetController {
+        constructor(chart, datasetIndex) {
+          super(chart, datasetIndex);
+        }
+        
+        // Required implementations
+        parseObjectData(meta, data, start, count) {
+          const parsed = [];
+          let i, ilen, item;
+          for (i = 0, ilen = data.length; i < ilen; ++i) {
+            item = data[i];
+            parsed.push({
+              x: item.x,
+              y: item.y,
+              v: item.v
+            });
+          }
+          return parsed;
+        }
+        
+        getMaxOverflow() {
+          return 0;
+        }
+        
+        getLabelAndValue(index) {
+          const me = this;
+          const parsed = me._cachedMeta._parsed[index];
+          const x = me._cachedMeta.xScale.getLabelForValue(parsed.x);
+          const y = me._cachedMeta.yScale.getLabelForValue(parsed.y);
+          return {
+            label: `${x}, ${y}`,
+            value: parsed.v
+          };
+        }
+        
+        updateElements(rectangles, start, count, mode) {
+          const me = this;
+          const vScale = me._cachedMeta.vScale;
+          const dataset = me.getDataset();
+          const xScale = me._cachedMeta.xScale;
+          const yScale = me._cachedMeta.yScale;
+          
+          // Get a reasonable width and height
+          let width = dataset.width || me.options.width;
+          if (typeof width === 'function') {
+            width = width({ chart: me.chart });
+          }
+          
+          let height = dataset.height || me.options.height;
+          if (typeof height === 'function') {
+            height = height({ chart: me.chart });
+          }
+          
+          for (let i = 0; i < count; ++i) {
+            const index = start + i;
+            const parsed = me._cachedMeta._parsed[index];
+            const properties = {
+              x: xScale.getPixelForValue(parsed.x),
+              y: yScale.getPixelForValue(parsed.y),
+              width,
+              height
+            };
+            
+            // Rectangle centers are at location, not corner
+            properties.x -= width / 2;
+            properties.y -= height / 2;
+            
+            properties.hidden = isNaN(parsed.v);
+            rectangles[i].x = properties.x;
+            rectangles[i].y = properties.y;
+            rectangles[i].width = properties.width;
+            rectangles[i].height = properties.height;
+            rectangles[i].hidden = properties.hidden;
+          }
+        }
+        
+        draw() {
+          const me = this;
+          const { ctx } = me.chart;
+          const meta = me._cachedMeta;
+          const elements = meta.data || [];
+          const dataset = me.getDataset();
+          const backgroundColor = dataset.backgroundColor;
+          
+          for (let i = 0; i < elements.length; ++i) {
+            const properties = elements[i];
+            const parsed = meta._parsed[i];
+            if (!properties.hidden) {
+              ctx.fillStyle = typeof backgroundColor === 'function' ? 
+                backgroundColor({ dataIndex: i, dataset, chart: me.chart }) : 
+                backgroundColor;
+                
+              ctx.fillRect(
+                properties.x,
+                properties.y,
+                properties.width,
+                properties.height
+              );
+              
+              if (me.options.borderWidth) {
+                ctx.strokeStyle = me.options.borderColor;
+                ctx.lineWidth = me.options.borderWidth;
+                ctx.strokeRect(
+                  properties.x,
+                  properties.y,
+                  properties.width,
+                  properties.height
+                );
+              }
+            }
+          }
+        }
+      },
+      
+      // Element class for the rectangles
+      defaults: {
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.1)'
+      },
+      elements: {
+        matrix: class MatrixElement extends Chart.Element {
+          constructor() {
+            super();
+            this.x = 0;
+            this.y = 0;
+            this.width = 0;
+            this.height = 0;
+            this.hidden = false;
+          }
+          
+          draw(ctx) {
+            // Drawing is handled in the controller
+          }
+          
+          getRange() {
+            return {
+              min: {
+                x: this.x,
+                y: this.y
+              },
+              max: {
+                x: this.x + this.width,
+                y: this.y + this.height
+              }
+            };
+          }
+        }
+      }
+    });
+  }
   
   // Create chart
   correlationMatrixChart = new Chart(correlationMatrixCanvas, chartConfig);
@@ -1552,148 +2467,95 @@ function createCorrelationMatrix(matrix) {
  * @returns {string} Color string
  */
 function getCorrelationColor(correlation) {
-  // Normalize between 0 and 1
+  // Normalize correlation value for color mapping
   const normalized = (correlation + 1) / 2;
   
   // Get color (blue for negative, white for zero, red for positive)
   if (correlation < 0) {
-    const intensity = Math.round(255 * (1 - Math.abs(correlation)));
-    return `rgba(0, 0, 255, ${Math.abs(correlation)})`;
+    // Blue gradient for negative correlations
+    return `rgba(0, 0, ${Math.round(255 * Math.abs(correlation))}, ${Math.abs(correlation)})`;
   } else if (correlation > 0) {
-    const intensity = Math.round(255 * (1 - correlation));
-    return `rgba(255, 0, 0, ${correlation})`;
+    // Red gradient for positive correlations
+    return `rgba(${Math.round(255 * correlation)}, 0, 0, ${correlation})`;
   } else {
+    // Neutral color for zero correlation
     return 'rgba(200, 200, 200, 0.5)';
   }
 }
 
 /**
- * Display insights
- * @param {Object} analysis Analysis results
+ * Generate optimal visualizations
+ * @param {Event} event Click event or trigger event
  */
-function displayInsights(analysis) {
-  if (!analysis.metadata || !analysis.metadata.insights) {
-    insightsContent.innerHTML = '<p class="text-center">No insights available</p>';
+async function generateOptimalVisualizations(event) {
+  console.log('generateOptimalVisualizations called');
+  
+  if (!currentDataId) {
+    alert('Please load a dataset first');
     return;
   }
   
-  const insights = analysis.metadata.insights;
-  
-  let html = '';
-  
-  // Display quality issues
-  if (insights.quality_issues && insights.quality_issues.length > 0) {
-    html += `
-      <div class="mb-4">
-        <h6>Data Quality Issues</h6>
-        <div class="list-group">
-    `;
+  try {
+    // Show loading state
+    const vizContainer = document.querySelector('#savedVisualizations');
+    if (vizContainer) {
+      vizContainer.innerHTML = '<div class="text-center"><div class="spinner-border"></div><p>Generating optimal visualizations...</p></div>';
+    }
     
-    insights.quality_issues.forEach(issue => {
-      const severityClass = issue.severity === 'high' ? 'list-group-item-danger' :
-                            issue.severity === 'medium' ? 'list-group-item-warning' :
-                            'list-group-item-info';
-      
-      html += `
-        <div class="list-group-item ${severityClass}">
-          <div class="d-flex w-100 justify-content-between">
-            <h6 class="mb-1">${issue.feature}</h6>
-            <small class="text-muted">${issue.issue.replace('_', ' ')}</small>
-          </div>
-          <p class="mb-1">${issue.description}</p>
-        </div>
-      `;
-    });
+    // Fetch optimal visualizations
+    const response = await fetch(`/api/optimal-visualizations/${currentDataId}?limit=5`);
     
-    html += `
-        </div>
+    if (!response.ok) {
+      throw new Error('Failed to generate optimal visualizations');
+    }
+    
+    const result = await response.json();
+    console.log('Optimal visualizations result:', result);
+    
+    // Display the visualizations
+    if (result.visualizations && result.visualizations.length > 0) {
+      displayOptimalVisualizations(result.visualizations);
+    } else {
+      if (vizContainer) {
+        vizContainer.innerHTML = '<div class="alert alert-info">No visualizations could be generated for this dataset.</div>';
+      }
+    }
+  } catch (error) {
+    console.error('Error generating optimal visualizations:', error);
+    const vizContainer = document.querySelector('#savedVisualizations');
+    if (vizContainer) {
+      vizContainer.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
+    }
+  }
+}
+
+/**
+ * Display optimal visualizations
+ * @param {Array} visualizations Array of visualization configurations
+ */
+function displayOptimalVisualizations(visualizations) {
+  const vizContainer = document.querySelector('#savedVisualizations');
+  if (!vizContainer) return;
+  
+  vizContainer.innerHTML = '';
+  
+  visualizations.forEach((viz, index) => {
+    const vizCard = document.createElement('div');
+    vizCard.className = 'card mb-3';
+    vizCard.innerHTML = `
+      <div class="card-body">
+        <h5 class="card-title">${viz.config?.title || `Visualization ${index + 1}`}</h5>
+        <canvas id="optimalChart${index}"></canvas>
       </div>
     `;
-  }
-  
-  // Display distribution insights
-  if (insights.distribution_insights && insights.distribution_insights.length > 0) {
-    html += `
-      <div class="mb-4">
-        <h6>Distribution Insights</h6>
-        <div class="list-group">
-    `;
+    vizContainer.appendChild(vizCard);
     
-    insights.distribution_insights.forEach(insight => {
-      html += `
-        <div class="list-group-item">
-          <div class="d-flex w-100 justify-content-between">
-            <h6 class="mb-1">${insight.feature}</h6>
-            <small class="text-muted">${insight.insight.replace('_', ' ')}</small>
-          </div>
-          <p class="mb-1">${insight.description}</p>
-          ${insight.recommendation ? `<small class="text-muted">Recommendation: ${insight.recommendation}</small>` : ''}
-        </div>
-      `;
-    });
-    
-    html += `
-        </div>
-      </div>
-    `;
-  }
-  
-  // Display correlation insights
-  if (insights.correlation_insights && insights.correlation_insights.length > 0) {
-    html += `
-      <div class="mb-4">
-        <h6>Correlation Insights</h6>
-        <div class="list-group">
-    `;
-    
-    insights.correlation_insights.forEach(insight => {
-      html += `
-        <div class="list-group-item">
-          <div class="d-flex w-100 justify-content-between">
-            <h6 class="mb-1">${insight.features.join(' & ')}</h6>
-            <small class="text-muted">${insight.insight.replace('_', ' ')}</small>
-          </div>
-          <p class="mb-1">${insight.description}</p>
-          ${insight.recommendation ? `<small class="text-muted">Recommendation: ${insight.recommendation}</small>` : ''}
-        </div>
-      `;
-    });
-    
-    html += `
-        </div>
-      </div>
-    `;
-  }
-  
-  // Display recommendations
-  if (insights.recommendations && insights.recommendations.length > 0) {
-    html += `
-      <div class="mb-4">
-        <h6>Key Recommendations</h6>
-        <div class="list-group">
-    `;
-    
-    insights.recommendations.forEach(rec => {
-      const priorityClass = rec.priority === 'high' ? 'list-group-item-danger' :
-                            rec.priority === 'medium' ? 'list-group-item-warning' :
-                            'list-group-item-info';
-      
-      html += `
-        <div class="list-group-item ${priorityClass}">
-          <div class="d-flex w-100 justify-content-between">
-            <h6 class="mb-1">${rec.type.replace('_', ' ')}</h6>
-            <small class="text-muted">Priority: ${rec.priority}</small>
-          </div>
-          <p class="mb-1">${rec.description}</p>
-        </div>
-      `;
-    });
-    
-    html += `
-        </div>
-      </div>
-    `;
-  }
-  
-  insightsContent.innerHTML = html || '<p class="text-center">No insights available</p>';
+    // Create the chart
+    setTimeout(() => {
+      const canvas = document.getElementById(`optimalChart${index}`);
+      if (canvas) {
+        new Chart(canvas, viz);
+      }
+    }, 100);
+  });
 }

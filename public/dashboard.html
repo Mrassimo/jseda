@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* ws://localhost:* https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; font-src 'self' https://cdn.jsdelivr.net;">
+  <title>EDA Dashboard - Modern Data Analysis</title>
+  
+  <!-- External CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  
+  <!-- Custom CSS -->
+  <link href="css/modern-dashboard.css" rel="stylesheet">
+  <link href="css/dark-theme.css" rel="stylesheet">
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="prompts/templates.js"></script>
+</head>
+<body class="">
+  <div class="dashboard-container">
+    <!-- Sidebar -->
+    <aside class="dashboard-sidebar" id="sidebar">
+      <div class="sidebar-header mb-4">
+        <h4 class="mb-1">EDA Dashboard</h4>
+        <p class="text-muted small mb-0">Data Analysis Tool</p>
+      </div>
+      
+      <!-- File Upload Section -->
+      <div class="modern-card mb-3">
+        <h6 class="card-title">Upload Data</h6>
+        <form id="uploadForm">
+          <div class="form-group">
+            <label for="csvFile" class="form-label">Select CSV File</label>
+            <input type="file" class="form-input" id="csvFile" accept=".csv" required>
+          </div>
+          <button type="submit" class="btn-modern btn-primary w-100">
+            <i class="bi bi-cloud-upload"></i>
+            <span>Upload & Analyse</span>
+          </button>
+        </form>
+      </div>
+      
+      <!-- Sample Data Section -->
+      <div class="modern-card mb-3">
+        <h6 class="card-title">Sample Datasets</h6>
+        <div class="d-grid gap-2">
+          <button class="btn-modern btn-secondary sample-data-btn" data-file="employees.csv">
+            <i class="bi bi-people"></i>
+            Employee Data
+          </button>
+          <button class="btn-modern btn-secondary sample-data-btn" data-file="sales.csv">
+            <i class="bi bi-graph-up"></i>
+            Sales Data
+          </button>
+        </div>
+      </div>
+      
+      <!-- Recent Datasets -->
+      <div class="modern-card">
+        <h6 class="card-title">Recent Datasets</h6>
+        <div id="datasetsList" class="datasets-list">
+          <div class="text-center text-muted" id="datasetsLoading">
+            <div class="spinner-border spinner-border-sm"></div>
+            <small>Loading...</small>
+          </div>
+          <p class="text-muted text-center hidden" id="noDatasets">
+            No datasets available
+          </p>
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="dashboard-main">
+      <!-- Header -->
+      <header class="d-flex justify-between align-center mb-4">
+        <div>
+          <h2 id="datasetName">Welcome to EDA Dashboard</h2>
+          <p class="text-muted mb-0" id="datasetInfo">Upload a CSV file to start analysing your data</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn-modern btn-ghost" id="menuToggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+            <i class="bi bi-list"></i>
+          </button>
+          <button class="btn-modern btn-ghost" id="themeToggle">
+            <i class="bi bi-moon-fill"></i>
+            <span>Dark</span>
+          </button>
+        </div>
+      </header>
+      
+      <!-- Main Panel (Hidden by default) -->
+      <div id="dataPanel" class="hidden">
+        <!-- Stats Grid -->
+        <div class="stats-grid" id="statsGrid">
+          <!-- Stats will be dynamically inserted here -->
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <div class="modern-card mb-3">
+          <nav class="nav nav-pills" id="dataTabs">
+            <a class="nav-link active" data-tab="preview" href="#preview">
+              <i class="bi bi-table"></i> Data Preview
+            </a>
+            <a class="nav-link" data-tab="visualize" href="#visualize">
+              <i class="bi bi-bar-chart"></i> Visualise
+            </a>
+            <a class="nav-link" data-tab="analyze" href="#analyze">
+              <i class="bi bi-cpu"></i> Analyse
+            </a>
+            <a class="nav-link" data-tab="insights" href="#insights">
+              <i class="bi bi-lightbulb"></i> Insights
+            </a>
+            <a class="nav-link" data-tab="export" href="#export">
+              <i class="bi bi-download"></i> Export
+            </a>
+          </nav>
+        </div>
+        
+        <!-- Tab Content -->
+        <div class="tab-content">
+          <!-- Data Preview Tab -->
+          <div class="tab-pane active" id="preview">
+            <div class="modern-card">
+              <div class="card-header">
+                <h3 class="card-title">Data Preview</h3>
+                <div class="chart-actions">
+                  <button class="btn-modern btn-ghost btn-sm" onclick="refreshDataPreview()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                  </button>
+                  <button class="btn-modern btn-ghost btn-sm" onclick="exportTableAsCSV()">
+                    <i class="bi bi-download"></i> Export
+                  </button>
+                </div>
+              </div>
+              <div id="dataPreview" class="data-table-container">
+                <p class="text-center text-muted">Loading preview...</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Visualize Tab -->
+          <div class="tab-pane hidden" id="visualize">
+            <div class="row">
+              <div class="col-md-4">
+                <div class="modern-card">
+                  <h4 class="card-title">Visualisation Options</h4>
+                  
+                  <div class="form-group">
+                    <label class="form-label">Chart Type</label>
+                    <select class="form-select" id="chartTypeSelect">
+                      <option value="bar">Bar Chart</option>
+                      <option value="line">Line Chart</option>
+                      <option value="scatter">Scatter Plot</option>
+                      <option value="pie">Pie Chart</option>
+                      <option value="histogram">Histogram</option>
+                      <option value="heatmap">Heatmap</option>
+                      <option value="boxplot">Box Plot</option>
+                    </select>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label class="form-label">X-Axis</label>
+                    <select class="form-select" id="xColumnSelect"></select>
+                  </div>
+                  
+                  <div class="form-group" id="yAxisGroup">
+                    <label class="form-label">Y-Axis</label>
+                    <select class="form-select" id="yColumnSelect"></select>
+                  </div>
+                  
+                  <button class="btn-modern btn-primary w-100" id="generateVisualizationBtn">
+                    <i class="bi bi-magic"></i>
+                    Generate Visualisation
+                  </button>
+                  
+                  <hr class="my-3">
+                  
+                  <h6 class="mb-3">Quick Actions</h6>
+                  <div class="d-grid gap-2">
+                    <button class="btn-modern btn-secondary" onclick="generateOptimalVisualizations()">
+                      <i class="bi bi-stars"></i>
+                      Auto-Generate Best Charts
+                    </button>
+                    <button class="btn-modern btn-ghost" onclick="loadRecommendations()">
+                      <i class="bi bi-lightbulb"></i>
+                      Get Recommendations
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="col-md-8">
+                <div class="chart-container">
+                  <div class="chart-header">
+                    <h4 class="card-title">Visualisation</h4>
+                    <div class="chart-actions">
+                      <button class="btn-modern btn-ghost btn-sm" onclick="downloadChart()">
+                        <i class="bi bi-download"></i>
+                      </button>
+                      <button class="btn-modern btn-ghost btn-sm" onclick="fullscreenChart()">
+                        <i class="bi bi-fullscreen"></i>
+                      </button>
+                    </div>
+                  </div>
+                  <canvas id="chartCanvas"></canvas>
+                </div>
+                
+                <!-- Saved Visualizations -->
+                <div class="mt-4">
+                  <h5 class="mb-3">Generated Visualisations</h5>
+                  <div id="savedVisualizations" class="row">
+                    <!-- Visualizations will be added here -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Analyze Tab -->
+          <div class="tab-pane hidden" id="analyze">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="modern-card">
+                  <h4 class="card-title">Statistical Summary</h4>
+                  <div id="summaryContent">
+                    <p class="text-center text-muted">Run analysis to see statistics</p>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="modern-card">
+                  <h4 class="card-title">Correlations</h4>
+                  <div style="height: 400px;">
+                    <canvas id="correlationMatrixCanvas"></canvas>
+                  </div>
+                  <div id="correlationsContent" class="mt-3"></div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="modern-card mt-4">
+              <h4 class="card-title">Detailed Statistics</h4>
+              <div id="statsContent">
+                <p class="text-center text-muted">Loading analysis...</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Insights Tab -->
+          <div class="tab-pane hidden" id="insights">
+            <div class="modern-card">
+              <div class="card-header">
+                <h3 class="card-title">AI-Generated Insights</h3>
+                <div class="chart-actions">
+                  <select class="form-select form-select-sm" style="width: auto;" id="promptTemplateSelect">
+                    <option value="dataScientist">Data Scientist</option>
+                    <option value="executiveSummary">Executive Summary</option>
+                    <option value="marketingInsights">Marketing Insights</option>
+                    <option value="seniorDataAnalyst">Senior Data Analyst</option>
+                    <option value="australianContext">Australian Context</option>
+                  </select>
+                  <button class="btn-modern btn-primary btn-sm" onclick="generateInsights()">
+                    <i class="bi bi-stars"></i> Generate
+                  </button>
+                </div>
+              </div>
+              <div id="insightsContent">
+                <p class="text-center text-muted">Select a template and generate insights</p>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Export Tab -->
+          <div class="tab-pane hidden" id="export">
+            <div class="modern-card">
+              <h3 class="card-title">Export Options</h3>
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="export-option">
+                    <i class="bi bi-file-earmark-excel display-1 text-success"></i>
+                    <h5>Excel Format</h5>
+                    <p class="text-muted">Export data with formatting and charts</p>
+                    <button class="btn-modern btn-success" onclick="exportToExcel()">
+                      Export to Excel
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="export-option">
+                    <i class="bi bi-filetype-json display-1 text-primary"></i>
+                    <h5>JSON Format</h5>
+                    <p class="text-muted">Machine-readable format with metadata</p>
+                    <button class="btn-modern btn-primary" onclick="exportToJSON()">
+                      Export to JSON
+                    </button>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="export-option">
+                    <i class="bi bi-file-earmark-pdf display-1 text-danger"></i>
+                    <h5>PDF Report</h5>
+                    <p class="text-muted">Complete analysis report with charts</p>
+                    <button class="btn-modern btn-danger" onclick="exportToPDF()">
+                      Export to PDF
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-content">
+      <div class="spinner-border text-primary mb-3"></div>
+      <p id="loadingMessage">Processing...</p>
+    </div>
+  </div>
+  
+  <!-- Chart Modal -->
+  <div class="modal fade" id="chartModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="chartModalTitle">Chart</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <canvas id="modalChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/theme.js"></script>
+</body>
+</html>

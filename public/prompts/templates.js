@@ -63,7 +63,21 @@ Your response should:
 1. Highlight findings particularly relevant to Australian consumers and businesses
 2. Compare patterns to typical Australian market trends
 3. Suggest approaches that would work well in the Australian business environment
-4. Identify any regulatory or cultural considerations specific to Australia`
+4. Identify any regulatory or cultural considerations specific to Australia
+5. Address any data quality issues noted in the integrity analysis`
+  },
+  dataIntegrityAssessment: {
+    name: "Data Integrity Assessment",
+    prompt: `As a data quality specialist, review and provide recommendations for the following dataset integrity assessment:
+
+{{INSIGHTS}}
+
+Please focus on:
+1. Prioritising data quality issues that need immediate attention
+2. Suggesting practical remediation steps for addressing the most critical issues
+3. Recommending data governance improvements specific to Australian health data
+4. Providing a step-by-step data cleaning plan that could be implemented
+5. Identifying any compliance considerations for Australian health data standards`
   }
 };
 

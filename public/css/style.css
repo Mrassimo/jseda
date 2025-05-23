@@ -1,0 +1,356 @@
+/* Main style for EDA App */
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Base styles moved from inline styles */
+.container {
+  margin-top: 50px;
+  transition: all 0.3s ease;
+}
+.chart-container {
+  width: 100%;
+  height: 400px;
+  margin-top: 30px;
+}
+.spinner-border {
+  display: none;
+}
+.hidden {
+  display: none;
+}
+#analysisSection {
+  margin-top: 50px;
+}
+#dataPreview {
+  margin-top: 30px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.nav-tabs {
+  margin-bottom: 20px;
+}
+.llm-export-section {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 30px;
+}
+.insight-container {
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+.prompt-container {
+  max-height: 250px;
+  overflow-y: auto;
+}
+.llm-prompt {
+  font-family: monospace;
+  background-color: #f5f5f5;
+  padding: 15px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+}
+
+/* Data Integrity Styles */
+.data-integrity-score {
+  text-align: center;
+  padding: 10px;
+}
+.score-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 60px;
+  background-color: #f8f9fa;
+  border: 5px solid #6c757d;
+  margin-bottom: 10px;
+  font-size: 36px;
+  font-weight: bold;
+  color: #6c757d;
+}
+.score-circle.excellent {
+  border-color: #28a745;
+  color: #28a745;
+}
+.score-circle.good {
+  border-color: #17a2b8;
+  color: #17a2b8;
+}
+.score-circle.fair {
+  border-color: #ffc107;
+  color: #ffc107;
+}
+.score-circle.poor {
+  border-color: #fd7e14;
+  color: #fd7e14;
+}
+.score-circle.critical {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+.score-label {
+  font-size: 18px;
+  font-weight: bold;
+}
+.integrity-issue {
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+.integrity-issue.critical {
+  background-color: rgba(220, 53, 69, 0.1);
+  border-left: 4px solid #dc3545;
+}
+.integrity-issue.major {
+  background-color: rgba(253, 126, 20, 0.1);
+  border-left: 4px solid #fd7e14;
+}
+.integrity-issue.minor {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-left: 4px solid #ffc107;
+}
+.integrity-issue.warning {
+  background-color: rgba(108, 117, 125, 0.1);
+  border-left: 4px solid #6c757d;
+}
+.recommendation-item {
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background-color: rgba(23, 162, 184, 0.1);
+  border-left: 4px solid #17a2b8;
+}
+.recommendation-item.high {
+  border-left-color: #dc3545;
+}
+.recommendation-item.medium {
+  border-left-color: #fd7e14;
+}
+.recommendation-item.low {
+  border-left-color: #ffc107;
+}
+
+/* Dark mode support for integrity scores */
+.dark-mode .score-circle {
+  background-color: var(--dark-card-bg);
+  border-color: var(--dark-on-bg);
+  color: var(--dark-on-bg);
+}
+.dark-mode .score-circle.excellent {
+  border-color: var(--dark-success-text);
+  color: var(--dark-success-text);
+}
+.dark-mode .score-circle.good {
+  border-color: var(--dark-info-text);
+  color: var(--dark-info-text);
+}
+.dark-mode .score-circle.fair {
+  border-color: var(--dark-warning-text);
+  color: var(--dark-warning-text);
+}
+.dark-mode .score-circle.poor {
+  border-color: #fd7e14;
+  color: #fd7e14;
+}
+.dark-mode .score-circle.critical {
+  border-color: var(--dark-danger-text);
+  color: var(--dark-danger-text);
+}
+
+/* Custom visualization tooltips */
+.viz-tooltip {
+  position: absolute;
+  display: none;
+  background-color: rgba(255, 255, 255, 0.95);
+  color: #333;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  max-width: 300px;
+  z-index: 1000;
+  font-size: 0.875rem;
+  border-left: 4px solid #3498db;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.viz-tooltip h5 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #2980b9;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+
+.viz-tooltip p {
+  margin: 0 0 6px 0;
+}
+
+.viz-tooltip-section {
+  margin-bottom: 8px;
+}
+
+.viz-tooltip-section h6 {
+  font-size: 0.875rem;
+  margin: 6px 0 3px 0;
+  font-weight: 600;
+}
+
+.viz-tooltip-section p {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.viz-tooltip-purpose {
+  color: #333;
+}
+
+.viz-tooltip-insights {
+  color: #2c3e50;
+}
+
+.viz-tooltip-rationale {
+  color: #16a085;
+  font-style: italic;
+}
+
+.viz-tooltip-background {
+  color: #7f8c8d;
+  font-size: 0.75rem;
+}
+
+/* Custom hover effect for visualization containers */
+.chart-container {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.chart-container:hover {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.chart-container .info-icon {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  color: #3498db;
+  cursor: pointer;
+  z-index: 10;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.chart-container .info-icon:hover {
+  opacity: 1;
+}
+
+/* Recommendation cards with info buttons */
+.recommendation-card {
+  position: relative;
+}
+
+.recommendation-card .info-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recommendation-card .info-btn:hover {
+  background-color: #e9ecef;
+}
+
+/* Dark mode support */
+.dark-mode .viz-tooltip {
+  background-color: rgba(30, 30, 30, 0.95);
+  color: #e0e0e0;
+  border-left: 4px solid #bb86fc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.dark-mode .viz-tooltip h5 {
+  color: #bb86fc;
+  border-bottom: 1px solid #333;
+}
+
+.dark-mode .viz-tooltip-purpose {
+  color: #e0e0e0;
+}
+
+.dark-mode .viz-tooltip-insights {
+  color: #a0c4de;
+}
+
+.dark-mode .viz-tooltip-rationale {
+  color: #03dac6;
+}
+
+.dark-mode .viz-tooltip-background {
+  color: #aaaaaa;
+}
+
+.dark-mode .chart-container .info-icon {
+  color: #bb86fc;
+}
+
+.dark-mode .recommendation-card .info-btn {
+  background-color: #333;
+  border-color: #444;
+}
+
+.dark-mode .recommendation-card .info-btn:hover {
+  background-color: #444;
+}
+
+/* Accessibility improvements */
+.viz-tooltip {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
